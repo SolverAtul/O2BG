@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>WashCare Scanner</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#080C14;--s2:#161C2E;--s3:#1E2640;
+  --bdr:rgba(255,255,255,.06);--bdr2:rgba(255,255,255,.11);
+  --t1:#DDE2EE;--t2:#7A859C;--t3:#3A4458;
+  --acc:#6C67D4;--acc2:#1A8F6A;--red:#D94848;
+  --font:'DM Sans',system-ui,sans-serif;--mono:'DM Mono',monospace;
+  --safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);
+}
+html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-height:100vh;overscroll-behavior:none}
+#app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+.hdr{display:flex;align-items:center;justify-content:space-between;
+  padding:calc(var(--safe-top)+14px) 18px 14px;
+  position:sticky;top:0;z-index:60;background:rgba(8,12,20,.96);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--bdr)}
+.logo{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600}
+.logo-ic{width:34px;height:34px;border-radius:10px;background:rgba(108,103,212,.15);
+  border:1px solid rgba(108,103,212,.3);display:flex;align-items:center;justify-content:center}
+.logo-ic svg{width:17px;height:17px;stroke:var(--acc);fill:none;stroke-width:1.6;stroke-linecap:round}
+.nav{display:flex;background:var(--s2);border:1px solid var(--bdr);border-radius:10px;padding:3px;gap:2px}
+.nb{background:none;border:none;border-radius:7px;padding:5px 13px;font-size:12px;font-weight:500;
+  cursor:pointer;color:var(--t2);font-family:var(--font);transition:all .18s}
+.nb.on{background:rgba(108,103,212,.18);color:var(--acc)}
+.st{display:none;flex-direction:column;flex:1}
+.st.on{display:flex}
+
+/* ── OCR banner ── */
+#ocr-banner{display:flex;align-items:center;gap:9px;padding:9px 16px;
+  font-size:11.5px;font-weight:500;border-bottom:1px solid var(--bdr);transition:background .3s}
+#ocr-banner svg{width:14px;height:14px;flex-shrink:0;fill:none;stroke-width:2;stroke-linecap:round}
+#ocr-banner.checking{background:rgba(108,103,212,.06);color:var(--t2)}
+#ocr-banner.checking svg{stroke:var(--acc);animation:rot 1.2s linear infinite}
+#ocr-banner.ready{background:rgba(26,143,106,.06);color:var(--acc2)}
+#ocr-banner.ready svg{stroke:var(--acc2)}
+#ocr-banner.fail{background:rgba(217,72,72,.06);color:var(--red)}
+#ocr-banner.fail svg{stroke:var(--red)}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ── IDLE ── */
+#st-idle{padding:20px 16px;gap:16px}
+.hero{background:var(--s2);border:1.5px dashed rgba(108,103,212,.3);border-radius:20px;
+  padding:28px 20px;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;transition:all .2s}
+.hero:active,.hero.ov{border-color:rgba(108,103,212,.6);background:var(--s3)}
+.hero-orb{width:68px;height:68px;border-radius:50%;background:rgba(108,103,212,.1);
+  border:1.5px solid rgba(108,103,212,.25);display:flex;align-items:center;justify-content:center}
+.hero-orb svg{width:28px;height:28px;stroke:var(--acc);fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.hero-t{font-size:16px;font-weight:600}
+.hero-s{font-size:12px;color:var(--t2);text-align:center;line-height:1.7}
+.act-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.act{border:none;border-radius:14px;padding:16px 12px;cursor:pointer;font-family:var(--font);
+  font-size:13px;font-weight:600;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:8px}
+.act svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.act-cam{background:rgba(108,103,212,.12);border:1px solid rgba(108,103,212,.25);color:var(--acc)}
+.act-cam:active{background:rgba(108,103,212,.22)}
+.act-file{background:rgba(26,143,106,.1);border:1px solid rgba(26,143,106,.22);color:var(--acc2)}
+.act-file:active{background:rgba(26,143,106,.18)}
+
+/* ── OCR Unavailable help card ── */
+.ocr-help{background:var(--s2);border:1px solid rgba(217,72,72,.25);border-radius:16px;padding:18px;display:none;flex-direction:column;gap:12px}
+.ocr-help.show{display:flex}
+.ocr-help-t{font-size:13px;font-weight:600;color:var(--red)}
+.ocr-help-body{font-size:12px;color:var(--t2);line-height:1.8}
+.ocr-help-body strong{color:var(--t1);font-weight:600}
+.ocr-step{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:var(--t2);line-height:1.6}
+.ocr-step-num{width:20px;height:20px;border-radius:50%;background:rgba(108,103,212,.15);border:1px solid rgba(108,103,212,.28);
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--acc);flex-shrink:0;margin-top:1px}
+.ocr-link{display:inline-block;margin-top:8px;background:var(--acc);color:#fff;border:none;border-radius:10px;
+  padding:10px 18px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);text-decoration:none;width:100%;text-align:center}
+.ocr-link:active{opacity:.85}
+
+.pfx-sect{display:flex;flex-direction:column;gap:6px;align-items:center}
+.pfx-lbl{font-size:10px;color:var(--t3);letter-spacing:.5px;font-weight:500;text-transform:uppercase}
+.pfx-tags{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.pt{font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;
+  background:rgba(26,143,106,.09);border:1px solid rgba(26,143,106,.2);color:var(--acc2)}
+
+/* ── CAMERA ── */
+#st-cam{background:#000}
+.cam-wrap{position:relative;flex:1;min-height:320px;overflow:hidden;background:#000;display:flex}
+#cam-vid{width:100%;height:100%;object-fit:cover;display:block}
+.vf-ov{position:absolute;inset:0;pointer-events:none}
+.vf-frm{position:absolute;top:50%;left:50%;transform:translate(-50%,-54%);width:82%;max-width:310px;aspect-ratio:3/2}
+.vc{position:absolute;width:24px;height:24px;border-color:rgba(255,255,255,.9);border-style:solid}
+.vc.tl{top:0;left:0;border-width:2.5px 0 0 2.5px;border-radius:4px 0 0 0}
+.vc.tr{top:0;right:0;border-width:2.5px 2.5px 0 0;border-radius:0 4px 0 0}
+.vc.bl{bottom:0;left:0;border-width:0 0 2.5px 2.5px;border-radius:0 0 0 4px}
+.vc.br{bottom:0;right:0;border-width:0 2.5px 2.5px 0;border-radius:0 0 4px 0}
+.scan-ln{position:absolute;left:0;right:0;height:1.5px;
+  background:linear-gradient(90deg,transparent,rgba(108,103,212,.9),transparent);
+  animation:sc 2.4s ease-in-out infinite;top:10%}
+@keyframes sc{0%{top:10%}50%{top:88%}100%{top:10%}}
+.vf-hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:11px;color:rgba(255,255,255,.6);font-weight:500}
+.cam-badge{position:absolute;top:14px;right:14px;background:rgba(0,0,0,.5);
+  border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:4px 11px;font-size:10px;color:rgba(255,255,255,.8);font-weight:500}
+.cam-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:5;transition:opacity .07s}
+.cam-err-ov{position:absolute;inset:0;background:rgba(0,0,0,.93);display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center}
+.cam-err-ov.on{display:flex}
+.cam-err-ov svg{width:42px;height:42px;stroke:var(--t2);fill:none;stroke-width:1.2;stroke-linecap:round}
+.cam-err-ov p{font-size:12px;color:var(--t2);line-height:1.8;max-width:260px;white-space:pre-line}
+.cam-bar{background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:space-around;
+  padding:18px 40px calc(var(--safe-bot)+26px)}
+.csb{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.csb:active{background:rgba(255,255,255,.22)}
+.csb svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.cap{width:72px;height:72px;border-radius:50%;cursor:pointer;border:3px solid rgba(255,255,255,.35);
+  background:#fff;display:block;transition:transform .12s}
+.cap:active{transform:scale(.88)}
+.cap:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── PROCESSING ── */
+#st-proc{align-items:center;justify-content:center;gap:28px;padding:60px 20px;min-height:400px}
+.spin-wrap{position:relative;width:84px;height:84px}
+.spin-svg{width:84px;height:84px;animation:rot 1.4s linear infinite}
+.spin-ic{position:absolute;inset:14px;border-radius:50%;background:rgba(108,103,212,.06);
+  display:flex;align-items:center;justify-content:center}
+.spin-ic svg{width:22px;height:22px;stroke:var(--acc);fill:none;stroke-width:1.6;stroke-linecap:round;
+  animation:pu 1.4s ease-in-out infinite}
+@keyframes pu{0%,100%{opacity:.4}50%{opacity:1}}
+.steps{display:flex;flex-direction:column;align-items:center;gap:5px}
+.step{font-size:12px;color:var(--t3);transition:all .3s}
+.step.on{color:var(--acc);font-weight:500}
+.prog-rail{width:210px;height:2px;background:var(--bdr);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:2px;animation:pg 2.8s ease-in-out infinite}
+@keyframes pg{0%{width:0}65%{width:78%}100%{width:93%}}
+.btn-cancel{margin-top:4px;background:none;border:1px solid var(--bdr2);border-radius:10px;
+  padding:8px 20px;font-size:12px;color:var(--t2);cursor:pointer;font-family:var(--font)}
+
+/* ── RESULTS ── */
+#st-res{padding:14px 16px;gap:12px}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--s2);border:1px solid var(--bdr);border-radius:12px;padding:12px;text-align:center}
+.sv{font-size:22px;font-weight:600;color:var(--acc)}
+.sl{font-size:10px;color:var(--t2);margin-top:3px;font-weight:500}
+.bc-card{background:var(--s2);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;margin-bottom:10px}
+.bc-hd{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.bc-idx{width:24px;height:24px;border-radius:7px;flex-shrink:0;background:rgba(108,103,212,.13);
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--acc)}
+.bc-code{flex:1;font-family:var(--mono);font-size:14px;font-weight:500;letter-spacing:2px}
+.bc-acts{display:flex;gap:5px}
+.bc-btn{background:none;border:1px solid var(--bdr2);border-radius:8px;padding:6px 10px;font-size:11px;
+  cursor:pointer;color:var(--t2);font-family:var(--font);font-weight:500;display:flex;align-items:center;gap:5px}
+.bc-btn:active{border-color:rgba(108,103,212,.5);color:var(--acc)}
+.bc-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.bc-bar{background:#fff;padding:10px 16px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;border-top:1px solid var(--bdr)}
+.bc-bar canvas{max-width:100%;height:58px}
+.bc-bar-lbl{font-size:9.5px;color:#333;font-family:var(--mono);letter-spacing:2.5px;font-weight:600}
+.res-ft{display:flex;gap:8px;padding-bottom:calc(var(--safe-bot)+8px)}
+.btn-s{flex:1;background:none;border:1px solid var(--bdr2);border-radius:11px;padding:11px;
+  font-size:12px;font-weight:500;cursor:pointer;color:var(--t2);font-family:var(--font)}
+.btn-s:active{border-color:rgba(108,103,212,.4);color:var(--acc)}
+
+/* ── ERROR ── */
+#st-err{align-items:center;justify-content:center;gap:16px;padding:40px 20px;min-height:400px}
+.err-ic{width:66px;height:66px;border-radius:50%;background:rgba(217,72,72,.08);
+  border:1.5px solid rgba(217,72,72,.2);display:flex;align-items:center;justify-content:center}
+.err-ic svg{width:28px;height:28px;stroke:var(--red);fill:none;stroke-width:1.5;stroke-linecap:round}
+.err-t{font-size:17px;font-weight:600}
+.err-m{font-size:13px;color:var(--t2);text-align:center;max-width:300px;line-height:1.8;white-space:pre-line}
+.ocr-dbg{width:100%;border:1px solid var(--bdr2);border-radius:11px;overflow:hidden}
+.ocr-dbg-hdr{padding:10px 13px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:rgba(255,255,255,.03)}
+.ocr-dbg-hdr span{font-size:11px;font-weight:500;color:var(--t2)}
+.ocr-dbg-hdr svg{width:14px;height:14px;stroke:var(--t3);fill:none;stroke-width:2;stroke-linecap:round;transition:transform .2s}
+.ocr-dbg-hdr.open svg{transform:rotate(180deg)}
+.ocr-dbg-body{display:none;padding:11px 13px;font-family:var(--mono);font-size:10.5px;color:var(--t2);
+  line-height:1.7;background:rgba(0,0,0,.25);max-height:160px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+.ocr-dbg-body.open{display:block}
+.err-row{display:flex;gap:9px;flex-wrap:wrap;justify-content:center}
+.btn-p{background:var(--acc);color:#fff;border:none;border-radius:12px;padding:11px 22px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)}
+.btn-p:active{opacity:.85}
+.btn-p2{background:rgba(108,103,212,.13);color:var(--acc);border:1px solid rgba(108,103,212,.28);
+  border-radius:12px;padding:11px 22px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)}
+
+/* ── HISTORY ── */
+#st-hist{padding:14px 16px;gap:10px;padding-bottom:calc(var(--safe-bot)+14px)}
+.hist-tb{display:flex;align-items:center;justify-content:space-between}
+.hist-ttl{font-size:12px;font-weight:600;color:var(--t2)}
+.btn-clr{background:none;border:1px solid rgba(217,72,72,.22);border-radius:8px;padding:6px 13px;font-size:11px;cursor:pointer;color:rgba(217,72,72,.55);font-family:var(--font)}
+.h-empty{text-align:center;padding:60px 20px;color:var(--t3);font-size:13px;line-height:1.9}
+.h-entry{background:var(--s2);border:1px solid var(--bdr);border-radius:13px;overflow:hidden;margin-bottom:9px}
+.h-hdr{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
+.h-num{width:26px;height:26px;border-radius:7px;background:rgba(26,143,106,.1);border:1px solid rgba(26,143,106,.18);
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--acc2)}
+.h-info{flex:1}
+.h-codes{font-size:13px;font-weight:600}
+.h-ts{font-size:11px;color:var(--t2);margin-top:1px}
+.h-chev{font-size:11px;color:var(--t3);transition:transform .2s}
+.h-chev.open{transform:rotate(180deg)}
+.h-body{border-top:1px solid var(--bdr);padding:11px 14px;display:none;flex-direction:column;gap:9px}
+.h-body.open{display:flex}
+.h-bc{background:#fff;border-radius:9px;padding:8px 14px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.h-bc canvas{max-width:100%;height:48px}
+.h-bc-lbl{font-size:9.5px;color:#333;font-family:var(--mono);letter-spacing:2px;font-weight:600}
+.toast-area{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:999;pointer-events:none;white-space:nowrap}
+.toast{padding:10px 20px;border-radius:11px;font-size:12.5px;font-weight:500;opacity:0;transform:translateY(8px);transition:all .22s}
+.toast.ok{background:rgba(26,143,106,.92);color:#fff;opacity:1;transform:translateY(0)}
+.toast.er{background:rgba(217,72,72,.92);color:#fff;opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="hdr">
+    <div class="logo">
+      <div class="logo-ic">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="4" height="18" rx="1"/><rect x="9" y="3" width="2" height="18" rx="1"/><rect x="13" y="3" width="4" height="18" rx="1"/><rect x="19" y="3" width="2" height="18" rx="1"/></svg>
+      </div>
+      WashCare Scanner
+    </div>
+    <div class="nav">
+      <button class="nb on" id="nb-scan" onclick="goIdle()">Scan</button>
+      <button class="nb" id="nb-hist" onclick="goHistory()">History</button>
+    </div>
+  </div>
+
+  <!-- OCR status banner -->
+  <div id="ocr-banner" class="checking">
+    <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>
+    <span id="ocr-txt">Detecting OCR capability…</span>
+  </div>
+
+  <!-- IDLE -->
+  <div id="st-idle" class="st on">
+    <div class="hero" id="dz" onclick="document.getElementById('fi').click()"
+      ondragover="event.preventDefault();this.classList.add('ov')"
+      ondragleave="this.classList.remove('ov')"
+      ondrop="this.classList.remove('ov');onDrop(event)">
+      <div class="hero-orb">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </div>
+      <div class="hero-t">Drop label image here</div>
+      <div class="hero-s">JPEG · PNG · WEBP · No API key · No login</div>
+    </div>
+
+    <div class="act-row">
+      <button class="act act-cam" onclick="openCam()">
+        <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Camera
+      </button>
+      <button class="act act-file" onclick="document.getElementById('fi').click()">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Browse Image
+      </button>
+    </div>
+    <input type="file" id="fi" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" style="display:none" onchange="onFilePick(this)">
+
+    <!-- Help card shown only when OCR is unavailable -->
+    <div class="ocr-help" id="ocr-help">
+      <div class="ocr-help-t">⚠ OCR engine unavailable in this environment</div>
+      <div class="ocr-help-body">
+        This app needs to run from a proper web address (HTTPS) for the OCR engine to work.<br><br>
+        <strong>Why it fails here:</strong> The Claude chat window is a sandboxed iframe that blocks Web Workers — the same restriction affects <em>file://</em> on iPhone.<br><br>
+        <strong>Fix — host free on GitHub Pages (2 min):</strong>
+      </div>
+      <div class="ocr-step"><div class="ocr-step-num">1</div><span>Go to <strong>github.com</strong> → sign in (free account)</span></div>
+      <div class="ocr-step"><div class="ocr-step-num">2</div><span>New repository → name it <strong>washcare</strong> → Public → Create</span></div>
+      <div class="ocr-step"><div class="ocr-step-num">3</div><span>Click <strong>Add file → Upload files</strong> → drag this HTML file → Commit</span></div>
+      <div class="ocr-step"><div class="ocr-step-num">4</div><span>Settings → Pages → Source: <strong>main branch</strong> → Save</span></div>
+      <div class="ocr-step"><div class="ocr-step-num">5</div><span>Open <strong>https://YOUR-NAME.github.io/washcare/</strong> on your phone</span></div>
+      <a class="ocr-link" href="https://github.com/new" target="_blank" rel="noopener">Open GitHub → Create Repository →</a>
+      <div class="ocr-help-body" style="margin-top:4px">
+        <strong>Android Chrome shortcut:</strong> The app may already work if you open the HTML file directly in Chrome on Android — try it before the GitHub step.
+      </div>
+    </div>
+
+    <div class="pfx-sect">
+      <div class="pfx-lbl">Detects codes starting with</div>
+      <div class="pfx-tags">
+        <span class="pt">AH</span><span class="pt">AS</span><span class="pt">LP</span><span class="pt">PI</span>
+        <span class="pt">AB</span><span class="pt">AL</span><span class="pt">AO</span><span class="pt">AT</span>
+        <span class="pt">LR</span><span class="pt">LY</span><span class="pt">LA</span><span class="pt">AK</span>
+        <span class="pt">AG</span><span class="pt">AY</span><span class="pt">LX</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CAMERA -->
+  <div id="st-cam" class="st">
+    <div class="cam-wrap">
+      <video id="cam-vid" autoplay playsinline muted></video>
+      <div class="vf-ov">
+        <div class="vf-frm">
+          <div class="vc tl"></div><div class="vc tr"></div>
+          <div class="vc bl"></div><div class="vc br"></div>
+          <div class="scan-ln"></div>
+        </div>
+        <div class="vf-hint">Point rear camera at the care label</div>
+      </div>
+      <div class="cam-badge" id="cam-badge">Rear Camera</div>
+      <div class="cam-err-ov" id="cam-ov">
+        <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        <p id="cam-ov-msg">Camera unavailable</p>
+        <button class="btn-p" style="font-size:12px;padding:9px 18px" onclick="closeCam()">Use Browse Instead</button>
+      </div>
+      <div class="cam-flash" id="cam-flash"></div>
+    </div>
+    <div class="cam-bar">
+      <button class="csb" onclick="flipCam()">
+        <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-6.01"/></svg>
+      </button>
+      <button class="cap" id="btn-cap" onclick="doCapture()" disabled></button>
+      <button class="csb" onclick="closeCam()">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- PROCESSING -->
+  <div id="st-proc" class="st">
+    <div class="spin-wrap">
+      <svg class="spin-svg" viewBox="0 0 84 84">
+        <circle cx="42" cy="42" r="36" fill="none" stroke="rgba(108,103,212,.1)" stroke-width="4"/>
+        <path d="M42 6A36 36 0 0 1 78 42" fill="none" stroke="var(--acc)" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      <div class="spin-ic"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+    </div>
+    <div style="font-size:16px;font-weight:600">Processing…</div>
+    <div class="steps">
+      <div class="step" id="ps0">① Pre-processing image</div>
+      <div class="step" id="ps1">② OCR recognition</div>
+      <div class="step" id="ps2">③ Extracting prefix codes</div>
+      <div class="step" id="ps3">④ Generating barcodes</div>
+    </div>
+    <div class="prog-rail"><div class="prog-fill"></div></div>
+    <button class="btn-cancel" onclick="cancelProcess()">Cancel</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="st-res" class="st">
+    <div class="stat-row">
+      <div class="stat"><div class="sv" id="sv-n">0</div><div class="sl">Codes found</div></div>
+      <div class="stat"><div class="sv" id="sv-t">—</div><div class="sl">Process time</div></div>
+      <div class="stat"><div class="sv" id="sv-h">0</div><div class="sl">History</div></div>
+    </div>
+    <div id="bc-list"></div>
+    <div class="res-ft">
+      <button class="btn-s" onclick="dlAll()">⬇ Download All</button>
+      <button class="btn-s" onclick="goIdle()">← New Scan</button>
+    </div>
+  </div>
+
+  <!-- ERROR -->
+  <div id="st-err" class="st">
+    <div class="err-ic">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
+    <div class="err-t" id="err-t">Error</div>
+    <div class="err-m" id="err-msg"></div>
+    <div class="ocr-dbg" id="ocr-debug" style="display:none">
+      <div class="ocr-dbg-hdr" id="ocr-dbg-hdr" onclick="toggleDebug()">
+        <span>🔍 What OCR read</span>
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="ocr-dbg-body" id="ocr-dbg-body"></div>
+    </div>
+    <div class="err-row">
+      <button class="btn-p" onclick="openCam()">📷 Camera</button>
+      <button class="btn-p2" onclick="goIdle()">📁 Browse</button>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="st-hist" class="st">
+    <div class="hist-tb">
+      <div class="hist-ttl">Last <span id="hc">0</span> scans (max 5)</div>
+      <button class="btn-clr" onclick="clearHist()">Clear All</button>
+    </div>
+    <div id="hist-list"></div>
+  </div>
+</div>
+<div class="toast-area"><div class="toast" id="toast"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   OCR ENGINE — THREE STRATEGIES IN PRIORITY ORDER
+
+   STRATEGY 1 ── TextDetector (W3C Shape Detection API)
+   ─────────────────────────────────────────────────────
+   • Uses the device's BUILT-IN text recognition (Google ML Kit on Android).
+   • Zero CDN downloads. Zero Web Workers. Works from file:// instantly.
+   • Available on: Android Chrome ✓   Desktop Chrome ✓
+   • NOT available: iOS Safari ✗   Firefox ✗
+   • Why it fixes the error: no Worker is created at all.
+
+   STRATEGY 2 ── Tesseract.js v5 with Blob URL bridge
+   ─────────────────────────────────────────────────────
+   • Fetches worker script via CORS fetch() → creates same-origin blob://
+   • Bypasses the "cannot access Worker from different origin" error.
+   • Works on: HTTPS-hosted pages ✓   Android Chrome from file:// ✓
+   • Fails on: CSP sandbox (Claude chat) ✗   iOS from file:// ✗
+   • ~10 MB download on first use, cached after.
+
+   STRATEGY 3 ── Unavailable: show GitHub Pages setup guide
+   ─────────────────────────────────────────────────────────
+   • CSP sandbox (Claude chat iframe) blocks ALL workers including blob://.
+   • iOS Safari from file:// blocks fetch() to external HTTPS.
+   • Fix: host the file on GitHub Pages (free, 2 min) → HTTPS → works.
+═══════════════════════════════════════════════════════════════════════════ */
+
+const PREFIXES = ['AH','AS','LP','PI','AB','AL','AO','AT','LR','LY','LA','AK','AG','AY','LX']
+  .sort((a,b) => b.length - a.length);
+
+let scanHistory  = [];
+let currentCodes = [];
+let stepTimer    = null;
+let camStream    = null;
+let camFacing    = 'environment';
+let cancelled    = false;
+
+// OCR state
+let ocrMethod    = null;   // 'textdetector' | 'tesseract' | null
+let tWorker      = null;   // Tesseract worker instance (strategy 2)
+let ocrReadyProm = null;   // Promise that resolves when OCR is ready
+
+/* ── Banner ── */
+function setBanner(type, msg) {
+  const b = document.getElementById('ocr-banner');
+  const t = document.getElementById('ocr-txt');
+  b.className = type;
+  t.textContent = msg;
+  b.querySelector('svg').innerHTML = {
+    checking: '<path d="M21 12a9 9 0 1 1-6.22-8.56"/>',
+    ready:    '<polyline points="20 6 9 17 4 12"/>',
+    fail:     '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
+  }[type] || '';
+}
+
+/* ── Load a <script> from URL → Promise ── */
+function loadScript(url) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = url;
+    s.onload  = res;
+    s.onerror = () => rej(new Error('Script load failed: ' + url));
+    document.head.appendChild(s);
+  });
+}
+
+/* ── Fetch a CDN script → same-origin blob:// URL ─────────────────────────
+   Regular fetch() works cross-origin (CORS) from any page.
+   URL.createObjectURL() returns blob://CURRENT-ORIGIN/... — same-origin.
+   Passing that blob URL to Tesseract's createWorker() bypasses the
+   "cannot access Worker from different origin" SecurityError.           ── */
+async function fetchAsBlobUrl(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP ' + r.status + ' fetching ' + url);
+  const text = await r.text();
+  return URL.createObjectURL(new Blob([text], { type: 'text/javascript' }));
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   STRATEGY 1: TextDetector
+   Uses the browser's built-in device OCR — no workers, no CDN.
+════════════════════════════════════════════════════════════════════════ */
+async function tryTextDetector() {
+  if (!('TextDetector' in window)) return false;
+  try {
+    // Verify it actually works (some Android versions advertise but fail)
+    const td = new TextDetector();
+    const cv = document.createElement('canvas');
+    cv.width = 10; cv.height = 10;
+    await td.detect(cv);  // throws if feature is broken
+    ocrMethod = 'textdetector';
+    setBanner('ready', '✓ Native device OCR ready (no download needed)');
+    return true;
+  } catch(e) {
+    console.log('TextDetector probe failed:', e.message);
+    return false;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   STRATEGY 2: Tesseract.js v5 with blob URL bridge
+════════════════════════════════════════════════════════════════════════ */
+async function tryTesseract() {
+  setBanner('checking', 'Loading Tesseract OCR engine…');
+  try {
+    // Load main library
+    try {
+      await loadScript('https://unpkg.com/tesseract.js@5/dist/tesseract.min.js');
+    } catch {
+      await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+    }
+
+    // Fetch worker script → blob URL (same-origin, bypasses Worker restriction)
+    setBanner('checking', 'Downloading OCR worker (one-time, ~10 MB)…');
+    let workerBlobUrl;
+    try {
+      workerBlobUrl = await fetchAsBlobUrl('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js');
+    } catch {
+      workerBlobUrl = await fetchAsBlobUrl('https://unpkg.com/tesseract.js@5/dist/worker.min.js');
+    }
+
+    // Create the worker — workerPath is our same-origin blob URL
+    setBanner('checking', 'Starting OCR worker…');
+    tWorker = await Tesseract.createWorker('eng', 1, {
+      workerPath:    workerBlobUrl,
+      workerBlobURL: false,   // already a blob URL — don't wrap again
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          const pct = Math.round((m.progress || 0) * 100);
+          const el  = document.getElementById('ps1');
+          if (el) el.textContent = '② OCR recognition ' + pct + '%';
+        }
+      }
+    });
+
+    ocrMethod = 'tesseract';
+    setBanner('ready', '✓ Tesseract OCR ready — no API key needed');
+    return true;
+  } catch(e) {
+    console.error('Tesseract init failed:', e.message || e);
+    return false;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   INIT — tries strategies 1 then 2, shows help card if both fail
+════════════════════════════════════════════════════════════════════════ */
+async function initOCR() {
+  setBanner('checking', 'Detecting OCR capability…');
+
+  const ok1 = await tryTextDetector();
+  if (ok1) return;
+
+  const ok2 = await tryTesseract();
+  if (ok2) return;
+
+  // Both failed — show help card
+  ocrMethod = null;
+  setBanner('fail', '⚠ OCR unavailable — see setup instructions below');
+  document.getElementById('ocr-help').classList.add('show');
+}
+
+ocrReadyProm = initOCR();  // start immediately on page load
+
+/* ── Ensure OCR is ready before scanning ── */
+async function ensureOCR() {
+  await ocrReadyProm;
+  if (!ocrMethod) {
+    throw new Error(
+      'OCR engine is not available in this environment.\n\n' +
+      'On Android Chrome: open the HTML file directly in Chrome.\n' +
+      'On iPhone: host on GitHub Pages (see instructions on home screen).'
+    );
+  }
+}
+
+/* ── Run OCR on a canvas element ── */
+async function runOCR(canvas) {
+  await ensureOCR();
+
+  if (ocrMethod === 'textdetector') {
+    /* TextDetector accepts canvas, image, or ImageBitmap directly */
+    const detector = new TextDetector();
+    const results  = await detector.detect(canvas);
+    return results.map(r => r.rawValue).join('\n');
+  }
+
+  if (ocrMethod === 'tesseract') {
+    /* Tesseract accepts a data URL */
+    const dataURL = canvas.toDataURL('image/png');
+    const result  = await tWorker.recognize(dataURL);
+    return result.data.text;
+  }
+
+  throw new Error('No OCR method available');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   IMAGE PRE-PROCESSING
+   Returns a canvas (not just a dataURL) so TextDetector can use it
+   directly without a round-trip through Image.src.
+═══════════════════════════════════════════════════════════════════════ */
+function preprocessToCanvas(b64, mime) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX   = 1600;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const w     = Math.round(img.width  * scale);
+      const h     = Math.round(img.height * scale);
+      const cv    = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d');
+      ctx.filter = 'grayscale(1) contrast(1.5) brightness(1.1)';
+      ctx.drawImage(img, 0, 0, w, h);
+      res(cv);
+    };
+    img.onerror = () => {
+      // Return a blank canvas; OCR will fail cleanly
+      const cv = document.createElement('canvas'); cv.width = 100; cv.height = 100;
+      res(cv);
+    };
+    img.src = 'data:' + mime + ';base64,' + b64;
+  });
+}
+
+/* ── State ── */
+function setState(id) {
+  ['idle','cam','proc','res','err','hist'].forEach(s => {
+    const el = document.getElementById('st-' + s), on = s === id;
+    el.classList.toggle('on', on); el.style.display = on ? 'flex' : 'none'; el.style.flexDirection = 'column';
+  });
+  document.getElementById('nb-scan').classList.toggle('on', id !== 'hist');
+  document.getElementById('nb-hist').classList.toggle('on', id === 'hist');
+}
+function goIdle()    { stopCam(); setState('idle'); }
+function goHistory() { stopCam(); renderHist(); setState('hist'); }
+
+/* ── Camera ── */
+async function openCam() {
+  setState('cam');
+  document.getElementById('cam-ov').classList.remove('on');
+  document.getElementById('cam-vid').style.display = 'block';
+  document.getElementById('btn-cap').disabled = true;
+  if (!navigator.mediaDevices?.getUserMedia) { showCamErr('Camera not supported.\nUse Browse instead.'); return; }
+  stopCam(); await tryCamera(camFacing);
+}
+async function tryCamera(facing) {
+  const vid = document.getElementById('cam-vid');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    });
+    vid.srcObject = stream; camStream = stream; camFacing = facing;
+    vid.style.transform = 'none';  /* NO mirror — raw stream for accurate OCR */
+    document.getElementById('cam-badge').textContent = facing === 'user' ? 'Front Camera' : 'Rear Camera';
+    await vid.play(); document.getElementById('btn-cap').disabled = false;
+  } catch(err) {
+    stopCam();
+    if (facing === 'environment') { camFacing = 'user'; return tryCamera('user'); }
+    const msgs = { NotAllowedError: 'Camera permission denied.\nAllow in browser settings.',
+                   NotFoundError:   'No camera found.\nUse Browse instead.',
+                   NotReadableError:'Camera in use by another app.' };
+    showCamErr(msgs[err.name] || 'Camera error: ' + (err.message || err.name));
+  }
+}
+function showCamErr(m) {
+  document.getElementById('cam-vid').style.display = 'none';
+  document.getElementById('cam-ov-msg').textContent = m;
+  document.getElementById('cam-ov').classList.add('on');
+}
+function stopCam() { if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; } }
+function closeCam() { stopCam(); setState('idle'); }
+async function flipCam() {
+  const n = camFacing === 'environment' ? 'user' : 'environment';
+  stopCam(); document.getElementById('btn-cap').disabled = true; await tryCamera(n);
+}
+function doCapture() {
+  const vid = document.getElementById('cam-vid');
+  if (!vid.videoWidth || !camStream) { toast('Camera not ready', 'er'); return; }
+  /* Flash */
+  const fl = document.getElementById('cam-flash');
+  fl.style.opacity = '1'; setTimeout(() => { fl.style.opacity = '0'; }, 110);
+  /* Capture raw frame — no mirror transform */
+  const cv = document.createElement('canvas');
+  cv.width = vid.videoWidth; cv.height = vid.videoHeight;
+  cv.getContext('2d').drawImage(vid, 0, 0);
+  stopCam();
+  cv.toBlob(blob => {
+    if (!blob) { toast('Capture failed', 'er'); goIdle(); return; }
+    const r = new FileReader();
+    r.onload = () => { const p = r.result.split(','); processB64(p[1], 'image/jpeg'); };
+    r.readAsDataURL(blob);
+  }, 'image/jpeg', 0.92);
+}
+
+/* ── File pick ── */
+function onFilePick(inp) {
+  const f = inp.files[0]; inp.value = '';
+  if (!f) return;
+  if (!f.type.startsWith('image/')) { toast('Select an image file', 'er'); return; }
+  const r = new FileReader();
+  r.onload = () => { const p = r.result.split(','); processB64(p[1], p[0].split(':')[1].split(';')[0] || f.type); };
+  r.onerror = () => toast('Could not read file', 'er');
+  r.readAsDataURL(f);
+}
+function onDrop(ev) {
+  ev.preventDefault(); document.getElementById('dz').classList.remove('ov');
+  const f = ev.dataTransfer.files[0]; if (f) onFilePick({ files: [f], value: '' });
+}
+
+/* ── Code extraction ── */
+function normTok(s) { return s.toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function extractCodes(txt) {
+  const seen = new Set(), codes = [];
+  for (const raw of txt.split(/[\n\r\s,;|\t]+/)) {
+    const n = normTok(raw); if (n.length < 4) continue;
+    for (const p of PREFIXES) { if (n.startsWith(p)) { if (!seen.has(n)) { seen.add(n); codes.push(n); } break; } }
+    if (codes.length >= 10) break;
+  }
+  return codes;
+}
+
+/* ── Barcode ── */
+function makeBC(code) {
+  const c = document.createElement('canvas');
+  try { JsBarcode(c, code, { format:'CODE128', width:1.9, height:58, displayValue:false, margin:5, background:'#ffffff', lineColor:'#000000' }); } catch(e) { console.warn(e); }
+  return c;
+}
+function bcCard(code, idx) {
+  const wrap = document.createElement('div'); wrap.className = 'bc-card';
+  const canvas = makeBC(code);
+  wrap.innerHTML = `<div class="bc-hd">
+    <div class="bc-idx">${idx+1}</div>
+    <div class="bc-code">${code}</div>
+    <div class="bc-acts">
+      <button class="bc-btn" onclick="dlOne('${code}',this)">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save
+      </button>
+      <button class="bc-btn" onclick="cpCode('${code}')">
+        <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy
+      </button>
+    </div>
+  </div><div class="bc-bar"><div class="bc-bar-lbl">${code}</div></div>`;
+  wrap.querySelector('.bc-bar').insertBefore(canvas, wrap.querySelector('.bc-bar-lbl'));
+  return { wrap, canvas };
+}
+
+/* ── Steps ── */
+function startSteps() {
+  const ids = ['ps0','ps1','ps2','ps3']; let i = 0;
+  ids.forEach(id => document.getElementById(id).classList.remove('on'));
+  document.getElementById(ids[0]).classList.add('on');
+  stepTimer = setInterval(() => {
+    ids.forEach(id => document.getElementById(id).classList.remove('on'));
+    i = (i+1) % ids.length; document.getElementById(ids[i]).classList.add('on');
+  }, 700);
+}
+function stopSteps() { clearInterval(stepTimer); stepTimer = null; }
+function cancelProcess() { cancelled = true; stopSteps(); goIdle(); toast('Cancelled', 'ok'); }
+
+/* ── Main pipeline ── */
+async function processB64(b64, mime) {
+  cancelled = false; currentCodes = []; setState('proc'); startSteps();
+  const t0 = Date.now();
+  try {
+    /* Preprocess → canvas (works for both TextDetector and Tesseract) */
+    const canvas = await preprocessToCanvas(b64, mime);
+    if (cancelled) return;
+
+    /* Run OCR via whichever strategy is available */
+    const ocrTxt = await runOCR(canvas);
+    if (cancelled) return;
+    stopSteps();
+
+    const codes = extractCodes(ocrTxt);
+    if (!codes.length) {
+      document.getElementById('err-t').textContent   = 'No Codes Found';
+      document.getElementById('err-msg').textContent = 'No matching prefix codes detected.\nTips: good lighting · label flat · rear camera.';
+      const dbg = document.getElementById('ocr-debug'), bod = document.getElementById('ocr-dbg-body');
+      if (ocrTxt.trim()) { dbg.style.display = 'block'; bod.textContent = ocrTxt.trim(); }
+      else dbg.style.display = 'none';
+      setState('err'); return;
+    }
+
+    currentCodes = codes;
+    const list = document.getElementById('bc-list'); list.innerHTML = '';
+    const canvases = [];
+    codes.forEach((code, i) => { const {wrap,canvas} = bcCard(code,i); list.appendChild(wrap); canvases.push(canvas); });
+
+    const ms = Date.now() - t0;
+    document.getElementById('sv-n').textContent = codes.length;
+    document.getElementById('sv-t').textContent = ms < 1000 ? ms + 'ms' : (ms/1000).toFixed(1) + 's';
+    addHist(codes); document.getElementById('sv-h').textContent = scanHistory.length;
+    setState('res');
+  } catch(err) {
+    stopSteps(); if (cancelled) return;
+    document.getElementById('err-t').textContent   = 'Processing Error';
+    document.getElementById('err-msg').textContent = err.message || 'Something went wrong.';
+    document.getElementById('ocr-debug').style.display = 'none';
+    setState('err');
+  }
+}
+
+/* ── History ── */
+function addHist(codes) {
+  scanHistory.unshift({ id: Date.now(), ts: new Date(), codes: [...codes] });
+  if (scanHistory.length > 5) scanHistory = scanHistory.slice(0, 5);
+}
+function renderHist() {
+  const list = document.getElementById('hist-list');
+  document.getElementById('hc').textContent = scanHistory.length;
+  if (!scanHistory.length) { list.innerHTML = '<div class="h-empty">No scans yet.<br>Your last 5 scans will appear here.</div>'; return; }
+  const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  list.innerHTML = '';
+  scanHistory.forEach((e, i) => {
+    const d  = e.ts;
+    const ts = `${M[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const el = document.createElement('div'); el.className = 'h-entry';
+    const body = document.createElement('div'); body.className = 'h-body';
+    e.codes.forEach(code => {
+      const bc = document.createElement('div'); bc.className = 'h-bc';
+      const cv = document.createElement('canvas');
+      try { JsBarcode(cv, code, {format:'CODE128',width:1.6,height:46,displayValue:false,margin:4,background:'#fff',lineColor:'#000'}); } catch {}
+      const lb = document.createElement('div'); lb.className = 'h-bc-lbl'; lb.textContent = code;
+      bc.appendChild(cv); bc.appendChild(lb); body.appendChild(bc);
+    });
+    el.innerHTML = `<div class="h-hdr" onclick="toggleH(this)">
+      <div class="h-num">${i+1}</div>
+      <div class="h-info">
+        <div class="h-codes">${e.codes.length} code${e.codes.length!==1?'s':''} — ${e.codes.slice(0,3).join(', ')}${e.codes.length>3?'…':''}</div>
+        <div class="h-ts">${ts}</div>
+      </div>
+      <div class="h-chev">▾</div>
+    </div>`;
+    el.appendChild(body); list.appendChild(el);
+  });
+}
+function toggleH(hdr) { const b = hdr.nextElementSibling; const c = hdr.querySelector('.h-chev'); const o = b.classList.toggle('open'); c.classList.toggle('open', o); }
+function clearHist() { scanHistory = []; renderHist(); toast('History cleared', 'ok'); }
+
+/* ── Misc ── */
+function toggleDebug() { const h = document.getElementById('ocr-dbg-hdr'), b = document.getElementById('ocr-dbg-body'); const o = b.classList.toggle('open'); h.classList.toggle('open', o); }
+function dlOne(code, btn) {
+  const c = btn.closest('.bc-card').querySelector('canvas'); if (!c) return;
+  const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'barcode_'+code+'.png';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); toast('Saved '+code+'.png','ok');
+}
+function dlAll() {
+  if (!currentCodes.length) return;
+  document.querySelectorAll('#bc-list canvas').forEach((c,i) => {
+    const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'barcode_'+currentCodes[i]+'.png';
+    document.body.appendChild(a); setTimeout(()=>{a.click();document.body.removeChild(a);}, i*250);
+  });
+  toast('Downloading '+currentCodes.length+' barcode(s)…','ok');
+}
+function cpCode(code) { navigator.clipboard?.writeText(code).then(()=>toast('Copied: '+code,'ok')).catch(()=>toast('Code: '+code,'ok')); }
+let toastTimer = null;
+function toast(msg, type='ok') { const t=document.getElementById('toast'); clearTimeout(toastTimer); t.textContent=msg; t.className=type; toastTimer=setTimeout(()=>{t.className='';},2600); }
+
+setState('idle');
+window.addEventListener('beforeunload', stopCam);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden&&camStream) stopCam(); });
+</script>
+</body>
+</html>
