@@ -727,6 +727,18 @@ function buildPasses(img) {
   ];
 }
 
+/* ── Single lightweight canvas for TextDetector (Android Chrome) ────────
+   TextDetector is Google ML Kit — a neural network trained on real-world
+   mobile photos. It handles image variation internally. It does NOT need:
+   • High resolution  →  1600px is sufficient (matches its training data)
+   • Unsharp masking  →  its CNN finds edges better than our manual filter
+   • Multiple passes  →  one pass at the right resolution is enough
+   Heavy preprocessing hurts TextDetector: it creates pixel patterns the
+   network was not trained on. One clean canvas → one fast OCR call.     ── */
+function buildSinglePass(img) {
+  return [ makePass(img, 1600, 'grayscale(1) contrast(1.3) brightness(1.05)') ];
+}
+
 /* ── State ── */
 function setState(id) {
   ['idle','cam','proc','res','err','hist'].forEach(s => {
@@ -839,158 +851,277 @@ function onDrop(ev) {
   const f = ev.dataTransfer.files[0]; if (f) onFilePick({ files: [f], value: '' });
 }
 
-/* ── Code extraction — smart multi-pass deduplication ──────────────────────
+/* ═══════════════════════════════════════════════════════════════════════
+   CODE EXTRACTION — UNIVERSAL STRUCTURAL RULES  (v5)
+   ───────────────────────────────────────────────────────────────────────
+   Design principle: NO word lists. Word lists are fragile — they only work
+   for English labels. Indian brands, European brands, other languages all
+   have different label content. Structural rules work for ALL labels.
 
-   Bug fixed: the old code split on SPACES, which caused OCR artifacts like
-   "AH1234 56" (space inside code) to create a fake truncated code "AH1234"
-   alongside the correct "AH123456" — producing multiple results per label code.
+   RULE 1 — Must contain BOTH letters AND digits
+     Every real garment style code is alphanumeric (LPJKMGLFU72710, AH123456).
+     Pure-word OCR garbage (POLYESTER, LINING, SHELL) fails instantly.
+     Works in any language — no vocabulary needed.
 
-   New approach — two-stage extraction with frequency voting:
+   RULE 2 — Digit ratio ≥ 20% of total length
+     Real codes: LPJKMGLFU72710 = 5/14 = 36% ✓
+     Low-digit garbage: ASHELL296POLYESTER = 2/18 = 11% ✗
+     Catches long label-content strings that happen to have a digit or two.
 
-   Stage 1 (LINE split — primary):
-     Split only on newlines/commas/pipes. normTok then collapses any internal
-     spaces OCR inserted. "AH1234 56" → whole line → normTok → "AH123456" ✓
+   RULE 3 — Length 6–20 characters
+     Eliminates: ASE1 (too short), AOF1AAYNOTERANREPRRAERS (too long).
 
-   Stage 2 (TOKEN split — secondary):
-     Space-split as fallback for codes that share a line with other text.
-     Only adds codes not already found in stage 1.
+   RULE 4 — Longest wins within a variant group
+     OCR truncation always produces SHORTER variants, never longer ones.
+     LPJKMGLFU7271 is always a truncation of LPJKMGLFU72710, never the other
+     way around. So within any group of similar codes, the LONGEST is correct.
+     This directly implements the user's stated rule.
 
-   Deduplication — three passes:
-   a) Prefix-subsumption: remove "AH1234" when "AH123456" exists (truncation)
-   b) Similarity grouping: codes same length, differ ≤2 chars = same physical
-      code read differently by OCR → keep only the most-frequent reading
-   c) Frequency sort: codes seen in more OCR passes appear first in results
-
-   Result: one code per physical label code, with the most-confirmed reading.
-═════════════════════════════════════════════════════════════════════════════*/
+   RULE 5 — Frequency accumulation for cross-group tiebreaking
+     When the correct code is read slightly differently across passes
+     (LPJKMGLFU72710, LPJKMGIFU72710, LPUKMGLFU72710), all three get grouped
+     (lev≤3). Their frequencies accumulate: effective_freq=3.
+     An isolated garbled outlier (LPJRAGEFLI722730) has effective_freq=1.
+     One result per prefix → the highest effective_freq wins.
+═══════════════════════════════════════════════════════════════════════ */
 
 function normTok(s) { return s.toUpperCase().replace(/[^A-Z0-9]/g, ''); }
 
-/* extractCodesFromPasses — main function used by the pipeline.
-   passTexts: array of OCR text strings, one per preprocessing pass.
-   Returns deduplicated, frequency-ranked list of codes.               */
+function isValidCode(code) {
+  /* Three structural rules — no word lists, no ratio thresholds:
+     1. Length 6-20 chars (realistic for any garment style code)
+     2. Must have at least one letter (codes are always alphanumeric)
+     3. Must have at least 2 CONSECUTIVE digits — e.g. "72", "41"
+        A single stray digit is common OCR noise; a 2-digit run is
+        characteristic of a real numeric portion in a style code.
+        Allows: ATBLKSLMSP12 (real code with 2 digits)
+        Rejects: AOF1AAYNOTE (single stray digit only) */
+  if (code.length < 6 || code.length > 20)  return false;
+  if (!/[A-Z]/.test(code))                   return false;
+  if (!/[0-9]{2}/.test(code))               return false;
+  return true;
+}
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (Math.abs(m - n) > 5) return 99; // fast-reject very different lengths
+  const dp = Array.from({length: m+1}, (_, i) =>
+    Array.from({length: n+1}, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1]
+                 : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function getPrefix(code) {
+  for (const p of PREFIXES) { if (code.startsWith(p)) return p; }
+  return null;
+}
+
 function extractCodesFromPasses(passTexts) {
-  // freq: code → number of passes it appeared in
   const freq = new Map();
+  const PRFX = [...PREFIXES]; // already sorted longest-first
 
   for (const txt of passTexts) {
-    const seenThisPass = new Set();
+    const seen = new Set();
 
-    // ── Stage 1: line-level (primary) ─────────────────────────────
-    // Normalise the WHOLE line before checking prefix.
-    // "AH1234 56" → normTok → "AH123456" (collapses OCR-inserted spaces)
+    /* Stage 1 — line-level (primary)
+       Normalise the WHOLE line → catches "LPJK MGLFU72710" (OCR spaces) */
     for (const raw of txt.split(/[\n\r,;|]+/)) {
       const n = normTok(raw);
-      if (n.length < 4) continue;
-      for (const p of PREFIXES) {
-        if (n.startsWith(p)) { seenThisPass.add(n); break; }
+      if (n.length < 6) continue;
+      for (const p of PRFX) {
+        if (n.startsWith(p) && isValidCode(n)) { seen.add(n); break; }
       }
     }
 
-    // ── Stage 2: token-level (fallback) ────────────────────────────
-    // Space-split to catch codes adjacent to other text on the same line.
-    // Only adds codes that stage 1 did NOT already find.
+    /* Stage 2 — token-level fallback
+       Space-split catches codes sharing a line with other label text.
+       Only adds codes Stage 1 did not already find. */
     for (const raw of txt.split(/[\n\r\s,;|]+/)) {
       const n = normTok(raw);
-      if (n.length < 4 || seenThisPass.has(n)) continue;
-      for (const p of PREFIXES) {
-        if (n.startsWith(p)) { seenThisPass.add(n); break; }
+      if (n.length < 6 || seen.has(n)) continue;
+      for (const p of PRFX) {
+        if (n.startsWith(p) && isValidCode(n)) { seen.add(n); break; }
       }
     }
 
-    // Add this pass's codes to the frequency map
-    for (const code of seenThisPass) {
-      freq.set(code, (freq.get(code) || 0) + 1);
-    }
+    for (const code of seen) freq.set(code, (freq.get(code)||0) + 1);
   }
 
-  // ── Dedup step A: prefix-subsumption ─────────────────────────────
-  // Remove any code that is a truncated version of a longer code.
-  // "AH1234" is removed because "AH123456" already exists and starts with it.
+  if (!freq.size) return [];
+
   const allCodes = [...freq.keys()];
-  const nonTruncated = allCodes.filter(code =>
-    !allCodes.some(other => other !== code && other.startsWith(code))
-  );
 
-  // ── Dedup step B: similarity grouping (OCR character misreads) ────
-  // Codes with the same length that differ by ≤ 2 character positions
-  // are almost certainly the same physical code read with OCR noise.
-  // Keep only the reading that appeared in the most passes (majority vote).
-  // Sort: highest frequency first, then longest first, so the "best" reading
-  // is always processed first and the noisy variants are merged into it.
-  nonTruncated.sort((a, b) => {
-    const fd = (freq.get(b) || 0) - (freq.get(a) || 0);
-    return fd !== 0 ? fd : b.length - a.length;
-  });
+  /* ── GROUP variant codes that represent the same physical label code ──────
+     Two codes belong to the same group when they share a prefix AND:
+       a) one is a truncation of the other (startsWith), OR
+       b) lev distance ≤ 3 (1-char misread + up to 2-char length difference)
+     This groups: LPJKMGLFU72710, LPJKMGIFU72710, LPUKMGLFU72710 together.
+     LPJRAGEFLI722730 has lev=7 → stays in its own group.                   */
+  allCodes.sort((a, b) => (freq.get(b) - freq.get(a)) || (b.length - a.length));
 
-  const merged = new Set();
-  const result = [];
+  const assigned = new Set();
+  const groups   = [];
 
-  for (const code of nonTruncated) {
-    if (merged.has(code)) continue;   // already absorbed into a better reading
-    result.push(code);
-    merged.add(code);
-
-    // Absorb any same-length code that's close to this one
-    for (const other of nonTruncated) {
-      if (merged.has(other) || other === code) continue;
-      if (other.length !== code.length) continue;
-      let diffs = 0;
-      for (let i = 0; i < code.length; i++) {
-        if (code[i] !== other[i] && ++diffs > 2) break;
+  for (const code of allCodes) {
+    if (assigned.has(code)) continue;
+    const pfx   = getPrefix(code);
+    const group = [code];
+    assigned.add(code);
+    for (const other of allCodes) {
+      if (assigned.has(other) || getPrefix(other) !== pfx) continue;
+      if (other.startsWith(code) || code.startsWith(other)
+          || levenshtein(code, other) <= 3) {
+        group.push(other);
+        assigned.add(other);
       }
-      if (diffs <= 2) merged.add(other); // suppress this OCR variant
+    }
+    groups.push(group);
+  }
+
+  /* ── Per group: LONGEST code wins (Rule 4 — user's rule) ─────────────────
+     Ties on length broken by frequency. Effective freq = sum of all codes
+     in the group (Rule 5 — accumulated frequency for cross-group tiebreak). */
+  const effFreq  = new Map();
+  const winners  = [];
+
+  for (const group of groups) {
+    const winner = group.reduce((best, c) =>
+      (len => len > best.len || (len === best.len && (freq.get(c)||0) > best.f))
+        ({len: best.len, f: best.f}) ? {code: c, len: c.length, f: freq.get(c)||0} : best,
+      {code: group[0], len: group[0].length, f: freq.get(group[0])||0}
+    ).code;
+    effFreq.set(winner, group.reduce((s, c) => s + (freq.get(c)||1), 0));
+    winners.push(winner);
+  }
+
+  /* ── One result per prefix (Rule 5) ──────────────────────────────────────
+     Within each prefix (LP, AH, etc.), keep the group winner with the
+     highest effective_freq. One physical code → one barcode result.         */
+  const prefixBest = new Map();
+  for (const code of winners) {
+    const pfx = getPrefix(code);
+    if (!pfx) continue;
+    if (!prefixBest.has(pfx)
+        || (effFreq.get(code)||1) > (effFreq.get(prefixBest.get(pfx))||1)) {
+      prefixBest.set(pfx, code);
     }
   }
 
-  /* ── Digit preference filter ───────────────────────────────────────────
-     Real garment codes (style numbers, article codes) always contain at
-     least one digit. Pure all-letter strings like "ATNCAOSENSIESN" are
-     OCR misreads of ordinary label text (brand name, address, care words)
-     that happened to start with one of our two-letter prefixes.
+  const result = [...prefixBest.values()];
 
-     Rule: if ANY code with a digit was found, suppress all-letter codes.
-     Only fall back to all-letter codes when nothing with digits was found
-     (e.g., a label whose codes genuinely have no numeric component).     */
-  const withDigits    = result.filter(code => /[0-9]/.test(code));
-  const withoutDigits = result.filter(code => !/[0-9]/.test(code));
-
-  const finalResult = withDigits.length > 0
-    ? withDigits          // digit codes found → suppress all-letter garbage
-    : withoutDigits;      // no digit codes → fall back to all results
-
-  return finalResult.slice(0, 10);
+  /* ── Digit preference (Rule 1 safeguard) ────────────────────────────────
+     If any code has digits, suppress purely alphabetic codes.               */
+  const withDigits = result.filter(c => /[0-9]/.test(c));
+  return (withDigits.length > 0 ? withDigits : result).slice(0, 10);
 }
 
-/* extractCodes — kept for single-string usage (debug display).
-   For multi-pass OCR results, use extractCodesFromPasses() above.     */
-function extractCodes(txt) {
-  return extractCodesFromPasses([txt]);
-}
+/* Single-string wrapper — kept for backward compat / debug display */
+function extractCodes(txt) { return extractCodesFromPasses([txt]); }
 
-/* ── Barcode ── */
 function makeBC(code) {
   const c = document.createElement('canvas');
   try { JsBarcode(c, code, { format:'CODE128', width:1.9, height:58, displayValue:false, margin:5, background:'#ffffff', lineColor:'#000000' }); } catch(e) { console.warn(e); }
   return c;
 }
-function bcCard(code, idx) {
+
+function rebuildBarcode(card) {
+  const codeEl = card.querySelector('.bc-code');
+  const barEl  = card.querySelector('.bc-bar');
+  const lblEl  = card.querySelector('.bc-bar-lbl');
+  const code   = normTok(codeEl.textContent);
+  if (!code || code.length < 2) return;
+  // Remove old canvas
+  const oldCanvas = barEl.querySelector('canvas');
+  if (oldCanvas) oldCanvas.remove();
+  // Build new barcode
+  const newCanvas = makeBC(code);
+  lblEl.textContent = code;
+  barEl.insertBefore(newCanvas, lblEl);
+  // Update download button
+  const saveBtn = card.querySelector('.bc-btn-save');
+  if (saveBtn) saveBtn.onclick = () => dlOneByCode(code, card);
+  // Update copy button
+  const copyBtn = card.querySelector('.bc-btn-copy');
+  if (copyBtn) copyBtn.onclick = () => cpCode(code);
+}
+
+function bcCard(code, idx, passCount, totalPasses) {
   const wrap = document.createElement('div'); wrap.className = 'bc-card';
   const canvas = makeBC(code);
+
+  // Confidence: how many passes confirmed this code (after grouping)
+  const confidence = passCount && totalPasses
+    ? Math.round((passCount / totalPasses) * 100)
+    : null;
+  const confHtml = confidence !== null
+    ? `<span class="bc-conf" title="Confirmed in ${passCount} of ${totalPasses} OCR passes"
+         style="font-size:10px;padding:2px 7px;border-radius:5px;font-weight:600;margin-left:4px;
+         background:${confidence>=75?'rgba(26,143,106,.15)':confidence>=50?'rgba(234,147,58,.15)':'rgba(217,72,72,.12)'};
+         color:${confidence>=75?'var(--acc2)':confidence>=50?'#E8943A':'var(--red)'}">
+         ${confidence}% conf</span>`
+    : '';
+
   wrap.innerHTML = `<div class="bc-hd">
     <div class="bc-idx">${idx+1}</div>
-    <div class="bc-code">${code}</div>
+    <div class="bc-code" contenteditable="false" spellcheck="false"
+         style="flex:1;font-family:var(--mono);font-size:14px;font-weight:500;letter-spacing:2px;
+                outline:none;border-radius:6px;padding:2px 4px;cursor:default"
+         title="Tap edit to correct OCR errors">${code}</div>
+    ${confHtml}
     <div class="bc-acts">
-      <button class="bc-btn" onclick="dlOne('${code}',this)">
+      <button class="bc-btn bc-btn-edit" onclick="toggleEdit(this)" title="Edit code if OCR made an error">
+        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit
+      </button>
+      <button class="bc-btn bc-btn-save" onclick="dlOneByCode('${code}',this.closest('.bc-card'))" title="Save barcode as PNG">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save
       </button>
-      <button class="bc-btn" onclick="cpCode('${code}')">
+      <button class="bc-btn bc-btn-copy" onclick="cpCode('${code}')" title="Copy code text">
         <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy
       </button>
     </div>
   </div><div class="bc-bar"><div class="bc-bar-lbl">${code}</div></div>`;
   wrap.querySelector('.bc-bar').insertBefore(canvas, wrap.querySelector('.bc-bar-lbl'));
   return { wrap, canvas };
+}
+
+function toggleEdit(btn) {
+  const card   = btn.closest('.bc-card');
+  const codeEl = card.querySelector('.bc-code');
+  const isEdit = codeEl.contentEditable === 'true';
+  if (isEdit) {
+    // Finish editing — rebuild barcode with new code
+    codeEl.contentEditable = 'false';
+    codeEl.style.cursor = 'default';
+    codeEl.style.background = '';
+    btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit';
+    rebuildBarcode(card);
+    toast('Barcode updated ✓', 'ok');
+  } else {
+    // Start editing
+    codeEl.contentEditable = 'true';
+    codeEl.style.cursor = 'text';
+    codeEl.style.background = 'rgba(108,103,212,.1)';
+    codeEl.style.outline = '1.5px solid var(--acc)';
+    btn.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Done';
+    codeEl.focus();
+    // Select all text
+    const range = document.createRange();
+    range.selectNodeContents(codeEl);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  }
+}
+
+function dlOneByCode(code, card) {
+  const c = card ? card.querySelector('canvas') : null;
+  if (!c) return;
+  const a = document.createElement('a');
+  a.href = c.toDataURL('image/png'); a.download = 'barcode_'+code+'.png';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  toast('Saved '+code+'.png', 'ok');
 }
 
 /* ── Steps (passive labels — new pipeline drives them directly) ── */
@@ -1007,7 +1138,7 @@ async function processB64(b64, mime) {
   ['ps0','ps1','ps2','ps3'].forEach((id, i) => {
     const el = document.getElementById(id);
     el.classList.remove('on');
-    el.textContent = ['① Checking image quality…','② Running OCR (4 passes)…',
+    el.textContent = ['① Checking image quality…','② Running OCR…',
                       '③ Extracting prefix codes…','④ Generating barcodes…'][i];
   });
   document.getElementById('ps0').classList.add('on');
@@ -1042,37 +1173,57 @@ async function processB64(b64, mime) {
       setState('err'); return;
     }
 
-    /* ── Build 4 preprocessed canvases ─────────────────────────── */
+    /* ── Strategy-aware OCR routing ─────────────────────────────────
+       TextDetector (Android Chrome / Desktop Chrome):
+         • 1 pass only — Google ML Kit is accurate in a single run
+         • Lightweight preprocessing — neural network does its own internally
+         • Expected time: 0.5–1.5 seconds
+       Tesseract (iPhone / Firefox / any non-TextDetector browser):
+         • Up to 4 passes — needed to compensate for Tesseract's weaker
+           handling of fabric texture, blur, and contrast variation
+         • Early exit: stops as soon as a valid code is found, so clean
+           labels often finish after Pass 1 (~3–5 s instead of 14 s)    ── */
     document.getElementById('ps0').classList.remove('on');
     document.getElementById('ps0').textContent = `① Image quality: ${score.toFixed(0)} ${scoreLabel}`;
     document.getElementById('ps1').classList.add('on');
 
-    const passes = buildPasses(img);
+    const isNative = ocrMethod === 'textdetector';
+    const passes   = isNative ? buildSinglePass(img) : buildPasses(img);
     if (cancelled) return;
 
-    /* ── Run OCR on every pass, collect all text ─────────────────
-       Each pass may recover text the others miss.
-       Merged text is deduplicated by extractCodes().              ── */
     const allText = [];
     for (let i = 0; i < passes.length; i++) {
       if (cancelled) return;
-      document.getElementById('ps1').textContent = `② OCR pass ${i+1} of ${passes.length}…`;
+      document.getElementById('ps1').textContent = isNative
+        ? '② Native OCR (Google ML Kit)…'
+        : `② Tesseract pass ${i+1} of ${passes.length}…`;
       try {
         const txt = await runOCR(passes[i]);
         if (txt && txt.trim()) allText.push(txt);
       } catch(e) {
-        // One pass failing is fine — others may succeed
         console.warn('OCR pass', i + 1, 'failed:', e.message);
+      }
+      /* Early exit for Tesseract: stop as soon as a code is found.
+         TextDetector always runs exactly 1 pass so this branch is
+         never reached for it.                                        */
+      if (!isNative && allText.length > 0) {
+        const earlyCheck = extractCodesFromPasses(allText);
+        if (earlyCheck.length > 0) {
+          document.getElementById('ps1').textContent =
+            `② Found after pass ${i+1} — skipping remaining ${passes.length - i - 1} pass(es)`;
+          break;
+        }
       }
     }
     if (cancelled) return;
 
     document.getElementById('ps1').classList.remove('on');
-    document.getElementById('ps1').textContent = `② OCR done (${allText.length}/${passes.length} passes succeeded)`;
+    document.getElementById('ps1').textContent = isNative
+      ? '② Native OCR complete'
+      : `② Tesseract done (${allText.length} pass(es) ran)`;
     document.getElementById('ps2').classList.add('on');
 
     const mergedText = allText.join('\n');
-    // Use the smart multi-pass deduplication engine (not the simple extractCodes)
     const codes = extractCodesFromPasses(allText);
 
     document.getElementById('ps2').classList.remove('on');
@@ -1101,7 +1252,10 @@ async function processB64(b64, mime) {
     /* ── Build barcode cards ─────────────────────────────────────── */
     currentCodes = codes;
     const list = document.getElementById('bc-list'); list.innerHTML = '';
-    codes.forEach((code, i) => { const {wrap} = bcCard(code, i); list.appendChild(wrap); });
+    codes.forEach((code, i) => {
+      const { wrap } = bcCard(code, i, allText.length, passes.length);
+      list.appendChild(wrap);
+    });
 
     const ms = Date.now() - t0;
     document.getElementById('sv-n').textContent = codes.length;
@@ -1164,8 +1318,11 @@ function dlOne(code, btn) {
 }
 function dlAll() {
   if (!currentCodes.length) return;
-  document.querySelectorAll('#bc-list canvas').forEach((c,i) => {
-    const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'barcode_'+currentCodes[i]+'.png';
+  document.querySelectorAll('#bc-list .bc-card').forEach((card, i) => {
+    const c = card.querySelector('canvas');
+    const code = currentCodes[i] || ('code'+i);
+    if (!c) return;
+    const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'barcode_'+code+'.png';
     document.body.appendChild(a); setTimeout(()=>{a.click();document.body.removeChild(a);}, i*250);
   });
   toast('Downloading '+currentCodes.length+' barcode(s)…','ok');
