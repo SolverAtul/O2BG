@@ -943,7 +943,23 @@ function extractCodesFromPasses(passTexts) {
     }
   }
 
-  return result.slice(0, 10);
+  /* ── Digit preference filter ───────────────────────────────────────────
+     Real garment codes (style numbers, article codes) always contain at
+     least one digit. Pure all-letter strings like "ATNCAOSENSIESN" are
+     OCR misreads of ordinary label text (brand name, address, care words)
+     that happened to start with one of our two-letter prefixes.
+
+     Rule: if ANY code with a digit was found, suppress all-letter codes.
+     Only fall back to all-letter codes when nothing with digits was found
+     (e.g., a label whose codes genuinely have no numeric component).     */
+  const withDigits    = result.filter(code => /[0-9]/.test(code));
+  const withoutDigits = result.filter(code => !/[0-9]/.test(code));
+
+  const finalResult = withDigits.length > 0
+    ? withDigits          // digit codes found → suppress all-letter garbage
+    : withoutDigits;      // no digit codes → fall back to all results
+
+  return finalResult.slice(0, 10);
 }
 
 /* extractCodes — kept for single-string usage (debug display).
