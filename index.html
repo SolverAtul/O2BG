@@ -161,34 +161,47 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
   font-size:12px;font-weight:500;cursor:pointer;color:var(--t2);font-family:var(--font)}
 .btn-s:active{border-color:rgba(108,103,212,.4);color:var(--acc)}
 
-/* ── TEXT SELECTION (pick) ── */
-#st-pick{padding:0;gap:0;background:var(--bg)}
-.pick-hdr{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;
-  border-bottom:1px solid var(--bdr);background:var(--s2)}
-.pick-hdr-t{font-size:13px;font-weight:600}
-.pick-hdr-s{font-size:11px;color:var(--t2);margin-top:2px}
-.pick-img-wrap{position:relative;overflow:auto;flex:1;background:#111;
-  display:flex;align-items:flex-start;justify-content:center;min-height:200px}
-.pick-canvas-wrap{position:relative;display:inline-block}
-#pick-img-canvas{display:block;max-width:100%;height:auto}
-#pick-overlay{position:absolute;top:0;left:0;pointer-events:none}
-.pick-box{position:absolute;border:2px solid rgba(108,103,212,.7);border-radius:3px;
-  background:rgba(108,103,212,.12);cursor:pointer;transition:all .12s;pointer-events:all;
-  box-sizing:border-box}
-.pick-box:hover{border-color:rgba(108,103,212,1);background:rgba(108,103,212,.28)}
-.pick-box.selected{border-color:#FFD700;background:rgba(255,215,0,.25);border-width:2.5px}
-.pick-footer{padding:12px 16px;border-top:1px solid var(--bdr);background:var(--s2);
+/* ── TEXT SELECTION (pick) — Google Lens style drag-to-select ── */
+#st-pick{padding:0;gap:0;background:#000;flex:1}
+.pick-hdr{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;
+  background:rgba(0,0,0,.85);backdrop-filter:blur(10px);
+  position:absolute;top:0;left:0;right:0;z-index:10}
+.pick-hdr-t{font-size:13px;font-weight:600;color:#fff}
+.pick-hdr-s{font-size:10.5px;color:rgba(255,255,255,.55);margin-top:1px}
+/* The canvas fills the whole screen */
+#pick-main{position:relative;flex:1;display:flex;flex-direction:column;background:#000;min-height:400px}
+#pick-canvas{display:block;width:100%;cursor:crosshair;touch-action:none;
+  -webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+/* Bottom panel slides up over image */
+.pick-panel{background:rgba(12,16,28,.96);backdrop-filter:blur(16px);
+  border-top:1px solid rgba(255,255,255,.1);padding:14px 16px;
   display:flex;flex-direction:column;gap:10px}
-.pick-selected-txt{font-family:var(--mono);font-size:15px;font-weight:600;
-  letter-spacing:1.5px;color:var(--t1);min-height:22px;word-break:break-all}
-.pick-selected-lbl{font-size:10px;color:var(--t3);margin-bottom:2px;font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.pick-sel-lbl{font-size:10px;font-weight:600;color:rgba(255,255,255,.4);
+  text-transform:uppercase;letter-spacing:.6px}
+.pick-sel-val{font-family:var(--mono);font-size:16px;font-weight:600;
+  color:#fff;letter-spacing:2px;min-height:24px;word-break:break-all;
+  line-height:1.4}
+.pick-sel-placeholder{color:rgba(255,255,255,.25);font-family:var(--font);
+  font-size:13px;font-weight:400;letter-spacing:0}
+.pick-input-row{display:flex;gap:8px;align-items:center}
+.pick-input-row input{flex:1;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.14);border-radius:9px;
+  padding:9px 12px;font-family:var(--mono);font-size:13px;
+  color:#fff;font-weight:500;letter-spacing:1px;outline:none;
+  -webkit-appearance:none}
+.pick-input-row input::placeholder{color:rgba(255,255,255,.25);font-family:var(--font);
+  font-size:12px;font-weight:400;letter-spacing:0}
+.pick-input-row input:focus{border-color:rgba(108,103,212,.7)}
 .pick-actions{display:flex;gap:8px}
-.pick-hint{font-size:11px;color:var(--t2);text-align:center;padding:4px 0}
-.pick-manual{display:flex;gap:6px;align-items:center}
-.pick-manual input{flex:1;background:var(--s3);border:1px solid var(--bdr2);border-radius:8px;
-  padding:8px 12px;font-family:var(--mono);font-size:13px;color:var(--t1);
-  font-weight:500;letter-spacing:1px;outline:none}
-.pick-manual input:focus{border-color:var(--acc)}
+.pick-btn-gen{flex:2;background:var(--acc);color:#fff;border:none;border-radius:11px;
+  padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);
+  transition:all .15s}
+.pick-btn-gen:disabled{opacity:.35;cursor:not-allowed}
+.pick-btn-gen:not(:disabled):active{opacity:.85}
+.pick-btn-rescan{flex:1;background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);
+  border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:12px;
+  font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font)}
+.pick-hint-bar{font-size:10.5px;color:rgba(255,255,255,.35);text-align:center}
 
 /* ── ERROR ── */
 #st-err{align-items:center;justify-content:center;gap:16px;padding:40px 20px;min-height:400px}
@@ -414,46 +427,44 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
     </div>
   </div>
 
-  <!-- TEXT SELECTION — shown when OCR finds regions; user taps to pick code -->
+  <!-- TEXT SELECTION — Google Lens style drag-to-select -->
   <div id="st-pick" class="st">
-    <div class="pick-hdr">
-      <div>
-        <div class="pick-hdr-t">Select the code you want</div>
-        <div class="pick-hdr-s">Tap a highlighted box · or type / paste the code below</div>
+    <div id="pick-main">
+      <!-- Sticky header over image -->
+      <div class="pick-hdr">
+        <div>
+          <div class="pick-hdr-t">Drag to select text</div>
+          <div class="pick-hdr-s">Draw over the code · or type below</div>
+        </div>
+        <button style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+          border-radius:8px;padding:5px 12px;font-size:11px;color:rgba(255,255,255,.8);
+          cursor:pointer;font-family:var(--font)" onclick="goIdle()">✕</button>
       </div>
-      <button class="btn-p2" style="padding:7px 14px;font-size:12px" onclick="goIdle()">✕ Rescan</button>
+
+      <!-- Single canvas — image + OCR boxes + drag selection all drawn here -->
+      <canvas id="pick-canvas" ontouchstart="pickTouchStart(event)"
+              ontouchmove="pickTouchMove(event)" ontouchend="pickTouchEnd(event)"></canvas>
     </div>
 
-    <!-- Image with tappable text boxes overlaid -->
-    <div class="pick-img-wrap">
-      <div class="pick-canvas-wrap" id="pick-canvas-wrap">
-        <canvas id="pick-img-canvas"></canvas>
-        <div id="pick-overlay"></div>
-      </div>
-    </div>
-
-    <!-- Selected text + actions -->
-    <div class="pick-footer">
+    <!-- Bottom panel -->
+    <div class="pick-panel">
       <div>
-        <div class="pick-selected-lbl">Selected text</div>
-        <div class="pick-selected-txt" id="pick-sel-txt">— tap a highlighted region above —</div>
+        <div class="pick-sel-lbl">Selected text</div>
+        <div id="pick-sel-val" class="pick-sel-val">
+          <span class="pick-sel-placeholder">Draw over the text above</span>
+        </div>
       </div>
-
-      <!-- Manual input fallback -->
-      <div class="pick-manual">
-        <input type="text" id="pick-manual-inp" placeholder="or type / paste code here…"
-               oninput="onPickManualInput(this.value)"
-               style="text-transform:uppercase">
+      <div class="pick-input-row">
+        <input type="text" id="pick-manual-inp" placeholder="or type / paste code here"
+               autocomplete="off" autocorrect="off" autocapitalize="characters"
+               spellcheck="false" oninput="onPickManualInput(this.value)">
       </div>
-
-      <div class="pick-hint">All detected text is highlighted in purple · tap to select · selected turns gold</div>
-
+      <div class="pick-hint-bar">Drag finger over label text · tap ✕ to clear selection</div>
       <div class="pick-actions">
-        <button class="btn-p" id="pick-gen-btn" onclick="generateFromPick()"
-                style="flex:2;opacity:.45;cursor:not-allowed" disabled>
+        <button class="pick-btn-gen" id="pick-gen-btn" onclick="generateFromPick()" disabled>
           ✓ Generate Barcode
         </button>
-        <button class="btn-s" style="flex:1" onclick="goIdle()">← Rescan</button>
+        <button class="pick-btn-rescan" onclick="goIdle()">↩ Rescan</button>
       </div>
     </div>
   </div>
@@ -1250,136 +1261,234 @@ function dlOneByCode(code, card) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   TEXT SELECTION SCREEN — Google Lens style pick interface
+   GOOGLE LENS STYLE DRAG-TO-SELECT
    ─────────────────────────────────────────────────────────────────────
-   After OCR runs, shows the captured image with every detected text
-   region highlighted as a tappable box. User taps the code they want.
-   No filters, no prefix matching — user picks ANY text on the label.
-   ═══════════════════════════════════════════════════════════════════════ */
+   How it works:
+   1. showPickScreen() draws the scanned image onto a full-width canvas,
+      then draws semi-transparent purple boxes over every OCR text region.
+   2. User drags finger (touch) or mouse over the area containing the code.
+   3. As they drag, a blue selection rectangle is drawn live on the canvas.
+   4. On release, all OCR boxes that overlap the selection are collected.
+      Their text is concatenated → shown in the "Selected text" field.
+   5. User taps Generate Barcode → barcode is created from selected text.
 
-let pickBoxes      = [];   // [{text, x, y, w, h, scaleX, scaleY}] in display coords
-let pickSelected   = null; // currently selected text string
-let pickImgCanvas  = null; // the preprocessed canvas we drew on
+   The canvas is redrawn on every drag frame:
+     layer 1: original image
+     layer 2: all OCR boxes (dim purple)
+     layer 3: boxes inside selection (bright gold highlight)
+     layer 4: drag selection rectangle (blue outline + fill)
 
+   Works with touch (mobile) and mouse (desktop).
+   Manual text input is always available as fallback.
+═══════════════════════════════════════════════════════════════════════ */
+
+let pickOcrBoxes   = [];   // [{text,x,y,w,h}] in canvas display pixels
+let pickImgBitmap  = null; // ImageBitmap of the original photo for fast redraw
+let pickSelected   = '';   // currently selected text
+let pickIsDragging = false;
+let pickDragStart  = {x:0, y:0};
+let pickDragCur    = {x:0, y:0};
+let pickCanvasW    = 0;
+let pickCanvasH    = 0;
+let pickImgCanvas  = null; // preprocessed canvas (kept for coordinate mapping)
+
+/* ── Entry point: called by processB64 after OCR ── */
 function showPickScreen(imgCanvas, boxes) {
-  /* imgCanvas: the canvas from preprocessing (used as background image).
-     boxes: array of {text, x, y, w, h} in imgCanvas pixel coordinates. */
-  pickImgCanvas = imgCanvas;
-  pickBoxes     = boxes;
-  pickSelected  = null;
+  pickImgCanvas  = imgCanvas;
+  pickOcrBoxes   = boxes;
+  pickSelected   = '';
+  pickIsDragging = false;
 
   /* Reset UI */
-  document.getElementById('pick-sel-txt').textContent = '— tap a highlighted region above —';
+  document.getElementById('pick-sel-val').innerHTML =
+    '<span class="pick-sel-placeholder">Draw over the text above</span>';
   document.getElementById('pick-manual-inp').value = '';
   setPickBtn(false);
 
-  /* Draw the image onto the pick canvas */
-  const imgCv  = document.getElementById('pick-img-canvas');
-  const wrap   = document.getElementById('pick-canvas-wrap');
-  const maxW   = Math.min(window.innerWidth, 480);
-  const scale  = Math.min(1, maxW / imgCanvas.width);
-  imgCv.width  = Math.round(imgCanvas.width  * scale);
-  imgCv.height = Math.round(imgCanvas.height * scale);
-  imgCv.style.width  = imgCv.width  + 'px';
-  imgCv.style.height = imgCv.height + 'px';
-  imgCv.getContext('2d').drawImage(imgCanvas, 0, 0, imgCv.width, imgCv.height);
+  /* Size the canvas to fill the available width */
+  const cv  = document.getElementById('pick-canvas');
+  const maxW = Math.min(window.innerWidth, 480);
+  const scale = Math.min(1, maxW / imgCanvas.width);
+  pickCanvasW = Math.round(imgCanvas.width  * scale);
+  pickCanvasH = Math.round(imgCanvas.height * scale);
+  cv.width  = pickCanvasW;
+  cv.height = pickCanvasH;
+  cv.style.width  = pickCanvasW + 'px';
+  cv.style.height = pickCanvasH + 'px';
 
-  /* Draw overlay boxes */
-  const overlay = document.getElementById('pick-overlay');
-  overlay.style.width  = imgCv.width  + 'px';
-  overlay.style.height = imgCv.height + 'px';
-  overlay.innerHTML = '';
+  /* Scale OCR boxes to canvas display coordinates */
+  const scX = pickCanvasW / imgCanvas.width;
+  const scY = pickCanvasH / imgCanvas.height;
+  pickOcrBoxes = boxes.map(b => ({
+    text: b.text,
+    x: b.x * scX, y: b.y * scY,
+    w: b.w * scX, h: b.h * scY
+  }));
 
-  const scX = imgCv.width  / imgCanvas.width;
-  const scY = imgCv.height / imgCanvas.height;
-
-  /* Merge nearby boxes that belong to the same word/code line
-     TextDetector sometimes splits a single code into multiple boxes. */
-  const merged = mergeNearbyBoxes(boxes, imgCanvas.width);
-
-  merged.forEach((box, i) => {
-    const div = document.createElement('div');
-    div.className = 'pick-box';
-    /* Add small padding so box is easier to tap */
-    const pad = 3;
-    div.style.left   = Math.max(0, Math.round(box.x * scX) - pad) + 'px';
-    div.style.top    = Math.max(0, Math.round(box.y * scY) - pad) + 'px';
-    div.style.width  = (Math.round(box.w * scX) + pad * 2) + 'px';
-    div.style.height = (Math.round(box.h * scY) + pad * 2) + 'px';
-    div.title = box.text;
-    div.addEventListener('click', () => selectPickBox(div, box.text, merged, i));
-    overlay.appendChild(div);
+  /* Create ImageBitmap for fast redraws */
+  createImageBitmap(imgCanvas).then(bmp => {
+    pickImgBitmap = bmp;
+    redrawPick(null);
+  }).catch(() => {
+    pickImgBitmap = null;
+    redrawPick(null);
   });
+
+  /* Attach mouse events (desktop) */
+  cv.onmousedown  = e => { e.preventDefault(); const p = canvasPos(cv,e); pickDragStart=p; pickDragCur=p; pickIsDragging=true; };
+  cv.onmousemove  = e => { if(!pickIsDragging) return; pickDragCur=canvasPos(cv,e); redrawPick(selRect()); };
+  cv.onmouseup    = e => { if(!pickIsDragging) return; pickIsDragging=false; pickDragCur=canvasPos(cv,e); finaliseSelection(); };
+  cv.onmouseleave = e => { if(pickIsDragging){ pickIsDragging=false; finaliseSelection(); } };
 
   setState('pick');
 }
 
-/* Merge boxes that are on the same horizontal line and close together.
-   This joins "LPJKMGLFU" + "72710" (split by TextDetector) into one box. */
-function mergeNearbyBoxes(boxes, imgWidth) {
-  if (!boxes.length) return boxes;
-  const sorted = [...boxes].sort((a, b) => a.y - b.y || a.x - b.x);
-  const merged = [];
-  const used   = new Set();
-
-  for (let i = 0; i < sorted.length; i++) {
-    if (used.has(i)) continue;
-    let group = [sorted[i]];
-    used.add(i);
-    for (let j = i + 1; j < sorted.length; j++) {
-      if (used.has(j)) continue;
-      const a = sorted[i], b = sorted[j];
-      /* Same line: vertical centres within 60% of the taller box height */
-      const aCy = a.y + a.h / 2, bCy = b.y + b.h / 2;
-      const maxH = Math.max(a.h, b.h);
-      const hGap = b.x - (a.x + a.w); // horizontal gap between boxes
-      if (Math.abs(aCy - bCy) < maxH * 0.6 && hGap > -5 && hGap < imgWidth * 0.04) {
-        group.push(sorted[j]);
-        used.add(j);
-      }
-    }
-    /* Combine group into one bounding box + concatenated text */
-    const x0 = Math.min(...group.map(b => b.x));
-    const y0 = Math.min(...group.map(b => b.y));
-    const x1 = Math.max(...group.map(b => b.x + b.w));
-    const y1 = Math.max(...group.map(b => b.y + b.h));
-    const txt = group.sort((a, b) => a.x - b.x).map(b => b.text).join('');
-    merged.push({ text: txt, x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
-  }
-  return merged;
+/* Convert mouse/touch event coords → canvas pixel coords */
+function canvasPos(cv, e) {
+  const r = cv.getBoundingClientRect();
+  const scX = cv.width  / r.width;
+  const scY = cv.height / r.height;
+  const clientX = e.clientX ?? (e.touches && e.touches[0] ? e.touches[0].clientX : e.changedTouches[0].clientX);
+  const clientY = e.clientY ?? (e.touches && e.touches[0] ? e.touches[0].clientY : e.changedTouches[0].clientY);
+  return { x: (clientX - r.left) * scX, y: (clientY - r.top) * scY };
 }
 
-function selectPickBox(div, text, allBoxes, idx) {
-  /* Deselect all, select this one */
-  document.querySelectorAll('#pick-overlay .pick-box')
-    .forEach(b => b.classList.remove('selected'));
-  div.classList.add('selected');
-  pickSelected = normTok(text);
-  document.getElementById('pick-sel-txt').textContent = pickSelected || text;
+/* Touch handlers */
+function pickTouchStart(e) {
+  e.preventDefault();
+  const p = canvasPos(document.getElementById('pick-canvas'), e);
+  pickDragStart = p; pickDragCur = p; pickIsDragging = true;
+}
+function pickTouchMove(e) {
+  e.preventDefault();
+  if (!pickIsDragging) return;
+  pickDragCur = canvasPos(document.getElementById('pick-canvas'), e);
+  redrawPick(selRect());
+}
+function pickTouchEnd(e) {
+  e.preventDefault();
+  if (!pickIsDragging) return;
+  pickIsDragging = false;
+  finaliseSelection();
+}
+
+/* Compute normalised selection rectangle from drag start/end */
+function selRect() {
+  const x = Math.min(pickDragStart.x, pickDragCur.x);
+  const y = Math.min(pickDragStart.y, pickDragCur.y);
+  const w = Math.abs(pickDragCur.x - pickDragStart.x);
+  const h = Math.abs(pickDragCur.y - pickDragStart.y);
+  return { x, y, w, h };
+}
+
+/* Check if box overlaps selection rectangle (any intersection) */
+function overlaps(box, sel) {
+  if (!sel || sel.w < 5 || sel.h < 5) return false;
+  return !(box.x + box.w < sel.x || box.x > sel.x + sel.w ||
+           box.y + box.h < sel.y || box.y > sel.y + sel.h);
+}
+
+/* Redraw the canvas: image + OCR boxes + selection rectangle */
+function redrawPick(sel) {
+  const cv  = document.getElementById('pick-canvas');
+  const ctx = cv.getContext('2d');
+
+  /* Layer 1: original image */
+  if (pickImgBitmap) {
+    ctx.drawImage(pickImgBitmap, 0, 0, pickCanvasW, pickCanvasH);
+  } else if (pickImgCanvas) {
+    ctx.drawImage(pickImgCanvas, 0, 0, pickCanvasW, pickCanvasH);
+  } else {
+    ctx.fillStyle = '#222'; ctx.fillRect(0,0,pickCanvasW,pickCanvasH);
+  }
+
+  /* Layer 2: all OCR boxes — dim purple outline */
+  ctx.strokeStyle = 'rgba(108,103,212,0.7)';
+  ctx.lineWidth   = 1.5;
+  ctx.fillStyle   = 'rgba(108,103,212,0.08)';
+  for (const b of pickOcrBoxes) {
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+  }
+
+  /* Layer 3: boxes inside selection — bright gold highlight */
+  if (sel) {
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth   = 2;
+    ctx.fillStyle   = 'rgba(255,215,0,0.28)';
+    for (const b of pickOcrBoxes) {
+      if (overlaps(b, sel)) {
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+        ctx.strokeRect(b.x, b.y, b.w, b.h);
+      }
+    }
+  }
+
+  /* Layer 4: drag selection rectangle — blue */
+  if (sel && sel.w > 3 && sel.h > 3) {
+    ctx.strokeStyle = 'rgba(100,180,255,0.95)';
+    ctx.lineWidth   = 2;
+    ctx.setLineDash([6, 3]);
+    ctx.fillStyle   = 'rgba(100,180,255,0.08)';
+    ctx.fillRect(sel.x, sel.y, sel.w, sel.h);
+    ctx.strokeRect(sel.x, sel.y, sel.w, sel.h);
+    ctx.setLineDash([]);
+  }
+}
+
+/* Called when drag ends — collect text from selected boxes, update UI */
+function finaliseSelection() {
+  const sel = selRect();
+  /* Collect all OCR boxes that overlap the selection, sorted left-to-right */
+  const hit = pickOcrBoxes
+    .filter(b => overlaps(b, sel))
+    .sort((a, b) => a.x - b.x);
+
+  redrawPick(sel); // keep gold highlights visible after drag ends
+
+  if (hit.length === 0) return;
+
+  /* Concatenate text, normalise */
+  const raw  = hit.map(b => b.text).join(' ');
+  const norm = normTok(raw);
+  pickSelected = norm;
+
+  const valEl = document.getElementById('pick-sel-val');
+  valEl.innerHTML = '';
+  valEl.textContent = norm || raw;
   document.getElementById('pick-manual-inp').value = '';
-  setPickBtn(!!pickSelected && pickSelected.length >= 2);
+  setPickBtn(norm.length >= 2 || raw.trim().length >= 2);
+}
+
+/* Clear selection when user taps ✕ — kept for future use */
+function clearPickSelection() {
+  pickSelected = '';
+  document.getElementById('pick-sel-val').innerHTML =
+    '<span class="pick-sel-placeholder">Draw over the text above</span>';
+  document.getElementById('pick-manual-inp').value = '';
+  setPickBtn(false);
+  redrawPick(null);
 }
 
 function onPickManualInput(val) {
   const n = normTok(val);
-  pickSelected = n;
-  document.getElementById('pick-sel-txt').textContent = n || '—';
-  /* Deselect all boxes when typing manually */
-  document.querySelectorAll('#pick-overlay .pick-box')
-    .forEach(b => b.classList.remove('selected'));
-  setPickBtn(n.length >= 2);
+  pickSelected = n || val.trim();
+  const valEl = document.getElementById('pick-sel-val');
+  valEl.innerHTML = '';
+  valEl.textContent = pickSelected || '—';
+  redrawPick(null); // clear selection rectangle
+  setPickBtn(pickSelected.length >= 2);
 }
 
 function setPickBtn(enabled) {
   const btn = document.getElementById('pick-gen-btn');
   btn.disabled = !enabled;
-  btn.style.opacity = enabled ? '1' : '.45';
-  btn.style.cursor  = enabled ? 'pointer' : 'not-allowed';
 }
 
 function generateFromPick() {
-  const code = (pickSelected || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (!code || code.length < 2) { toast('Please select or type a code first', 'er'); return; }
+  const raw  = (pickSelected || '').trim();
+  const code = normTok(raw) || raw.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if (!code || code.length < 2) { toast('Select or type a code first', 'er'); return; }
 
   currentCodes = [code];
   const list = document.getElementById('bc-list');
