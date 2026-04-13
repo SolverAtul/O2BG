@@ -35,8 +35,7 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
 .st.on{display:flex}
 
 /* ── OCR banner ── */
-#ocr-banner{display:flex;align-items:center;gap:9px;padding:9px 16px;
-  font-size:11.5px;font-weight:500;border-bottom:1px solid var(--bdr);transition:background .3s}
+#ocr-banner{display:none !important}
 #ocr-banner svg{width:14px;height:14px;flex-shrink:0;fill:none;stroke-width:2;stroke-linecap:round}
 #ocr-banner.checking{background:rgba(108,103,212,.06);color:var(--t2)}
 #ocr-banner.checking svg{stroke:var(--acc);animation:rot 1.2s linear infinite}
@@ -57,6 +56,23 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
 .hero-t{font-size:16px;font-weight:600}
 .hero-s{font-size:12px;color:var(--t2);text-align:center;line-height:1.7}
 .act-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.act-paste{background:rgba(217,72,72,.09);border:1px solid rgba(217,72,72,.22);color:var(--red)}
+.act-paste:active{background:rgba(217,72,72,.18)}
+.paste-area{display:none;flex-direction:column;gap:8px;width:100%;animation:fadeIn .2s ease}
+.paste-area.open{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.paste-area textarea{width:100%;background:var(--s2);border:1px solid var(--bdr2);border-radius:12px;
+  padding:12px 14px;font-family:var(--mono);font-size:14px;color:var(--t1);font-weight:500;
+  letter-spacing:1px;outline:none;resize:none;line-height:1.5;min-height:64px;
+  -webkit-appearance:none}
+.paste-area textarea:focus{border-color:var(--acc)}
+.paste-area textarea::placeholder{color:var(--t3);font-family:var(--font);font-size:12px;
+  font-weight:400;letter-spacing:0}
+.paste-gen-btn{background:var(--acc);color:#fff;border:none;border-radius:11px;
+  padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);
+  width:100%;opacity:.4;transition:all .15s}
+.paste-gen-btn.active{opacity:1}
+.paste-gen-btn.active:active{opacity:.85}
 .act{border:none;border-radius:14px;padding:16px 12px;cursor:pointer;font-family:var(--font);
   font-size:13px;font-weight:600;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:8px}
 .act svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
@@ -282,7 +298,7 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </div>
       <div class="hero-t">Drop label image here</div>
-      <div class="hero-s">JPEG · PNG · WEBP · No API key · No login</div>
+      
     </div>
 
     <div class="act-row">
@@ -296,6 +312,23 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
       </button>
     </div>
     <input type="file" id="fi" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" style="display:none" onchange="onFilePick(this)">
+
+    <!-- Paste / Type code directly → generate barcode instantly -->
+    <button class="act act-paste" style="width:100%;flex-direction:row;justify-content:center;gap:10px;padding:13px"
+            onclick="togglePasteArea()">
+      <svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+      Paste or Type Code
+    </button>
+
+    <div class="paste-area" id="paste-area">
+      <textarea id="paste-inp" rows="2" placeholder="Paste or type code here (e.g. LPJKMGLFU72710)"
+                oninput="onPasteInput(this.value)"
+                autocomplete="off" autocorrect="off" autocapitalize="characters"
+                spellcheck="false"></textarea>
+      <button class="paste-gen-btn" id="paste-gen-btn" onclick="generateFromPaste()" disabled>
+        ✓ Generate Barcode
+      </button>
+    </div>
 
     <!-- Help card shown only when OCR is unavailable -->
     <div class="ocr-help" id="ocr-help">
@@ -572,7 +605,7 @@ async function tryTextDetector() {
     cv.width = 10; cv.height = 10;
     await td.detect(cv);  // throws if feature is broken
     ocrMethod = 'textdetector';
-    setBanner('ready', '✓ Native device OCR ready (no download needed)');
+    /* banner hidden */
     return true;
   } catch(e) {
     console.log('TextDetector probe failed:', e.message);
@@ -594,7 +627,7 @@ async function tryTesseract() {
     }
 
     // Fetch worker script → blob URL (same-origin, bypasses Worker restriction)
-    setBanner('checking', 'Downloading OCR worker (one-time, ~10 MB)…');
+    /* banner hidden */
     let workerBlobUrl;
     try {
       workerBlobUrl = await fetchAsBlobUrl('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js');
@@ -603,7 +636,7 @@ async function tryTesseract() {
     }
 
     // Create the worker — workerPath is our same-origin blob URL
-    setBanner('checking', 'Starting OCR worker…');
+    /* banner hidden */
     tWorker = await Tesseract.createWorker('eng', 1, {
       workerPath:    workerBlobUrl,
       workerBlobURL: false,   // already a blob URL — don't wrap again
@@ -631,7 +664,7 @@ async function tryTesseract() {
     });
 
     ocrMethod = 'tesseract';
-    setBanner('ready', '✓ Tesseract OCR ready — no API key needed');
+    /* banner hidden */
     return true;
   } catch(e) {
     console.error('Tesseract init failed:', e.message || e);
@@ -643,7 +676,7 @@ async function tryTesseract() {
    INIT — tries strategies 1 then 2, shows help card if both fail
 ════════════════════════════════════════════════════════════════════════ */
 async function initOCR() {
-  setBanner('checking', 'Detecting OCR capability…');
+  /* banner hidden */
 
   const ok1 = await tryTextDetector();
   if (ok1) return;
@@ -653,7 +686,7 @@ async function initOCR() {
 
   // Both failed — show help card
   ocrMethod = null;
-  setBanner('fail', '⚠ OCR unavailable — see setup instructions below');
+  /* banner hidden */
   document.getElementById('ocr-help').classList.add('show');
 }
 
@@ -973,6 +1006,50 @@ function doCapture() {
 }
 
 /* ── File pick ── */
+function togglePasteArea() {
+  const area = document.getElementById('paste-area');
+  const isOpen = area.classList.toggle('open');
+  if (isOpen) {
+    setTimeout(() => document.getElementById('paste-inp').focus(), 100);
+  } else {
+    document.getElementById('paste-inp').value = '';
+    document.getElementById('paste-gen-btn').disabled = true;
+    document.getElementById('paste-gen-btn').classList.remove('active');
+  }
+}
+
+function onPasteInput(val) {
+  const code = val.toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+  const btn  = document.getElementById('paste-gen-btn');
+  btn.disabled = code.length < 2;
+  btn.classList.toggle('active', code.length >= 2);
+}
+
+function generateFromPaste() {
+  const raw  = document.getElementById('paste-inp').value;
+  const code = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+  if (!code || code.length < 2) { toast('Please enter a code first', 'er'); return; }
+
+  /* Close paste area */
+  document.getElementById('paste-area').classList.remove('open');
+  document.getElementById('paste-inp').value = '';
+  document.getElementById('paste-gen-btn').disabled = true;
+  document.getElementById('paste-gen-btn').classList.remove('active');
+
+  /* Build barcode card and go to results */
+  currentCodes = [code];
+  const list = document.getElementById('bc-list');
+  list.innerHTML = '';
+  const { wrap } = bcCard(code, 0, null, null);
+  list.appendChild(wrap);
+  document.getElementById('sv-n').textContent = 1;
+  document.getElementById('sv-t').textContent = '—';
+  addHist([code]);
+  document.getElementById('sv-h').textContent = scanHistory.length;
+  setState('res');
+  toast('Barcode generated ✓', 'ok');
+}
+
 function onFilePick(inp) {
   const f = inp.files[0]; inp.value = '';
   if (!f) return;
