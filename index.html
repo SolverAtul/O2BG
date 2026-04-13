@@ -277,10 +277,12 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
     <div class="pfx-sect">
       <div class="pfx-lbl">Detects codes starting with</div>
       <div class="pfx-tags">
-        <span class="pt">AH</span><span class="pt">AS</span><span class="pt">LP</span><span class="pt">PI</span>
-        <span class="pt">AB</span><span class="pt">AL</span><span class="pt">AO</span><span class="pt">AT</span>
-        <span class="pt">LR</span><span class="pt">LY</span><span class="pt">LA</span><span class="pt">AK</span>
-        <span class="pt">AG</span><span class="pt">AY</span><span class="pt">LX</span>
+        <span class="pt">AB</span><span class="pt">AG</span><span class="pt">AH</span><span class="pt">AI</span><span class="pt">AK</span><span class="pt">AL</span>
+        <span class="pt">AM</span><span class="pt">AO</span><span class="pt">AS</span><span class="pt">AT</span><span class="pt">AW</span><span class="pt">AY</span>
+        <span class="pt">EJ</span><span class="pt">IH</span><span class="pt">LA</span><span class="pt">LP</span><span class="pt">LR</span><span class="pt">LW</span>
+        <span class="pt">LX</span><span class="pt">LY</span><span class="pt">PC</span><span class="pt">PE</span><span class="pt">PI</span><span class="pt">PJ</span>
+        <span class="pt">PR</span><span class="pt">PX</span><span class="pt">VA</span><span class="pt">VD</span><span class="pt">VF</span><span class="pt">VH</span>
+        <span class="pt">VS</span><span class="pt">VU</span><span class="pt">VW</span><span class="pt">VX</span>
       </div>
     </div>
   </div>
@@ -422,7 +424,7 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
    • Fix: host the file on GitHub Pages (free, 2 min) → HTTPS → works.
 ═══════════════════════════════════════════════════════════════════════════ */
 
-const PREFIXES = ['AH','AS','LP','PI','AB','AL','AO','AT','LR','LY','LA','AK','AG','AY','LX']
+const PREFIXES = ['AB','AG','AH','AI','AK','AL','AM','AO','AS','AT','AW','AY','EJ','IH','LA','LP','LR','LW','LX','LY','PC','PE','PI','PJ','PR','PX','VA','VD','VF','VH','VS','VU','VW','VX']
   .sort((a,b) => b.length - a.length);
 
 let scanHistory  = [];
