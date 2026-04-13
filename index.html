@@ -532,6 +532,20 @@ async function tryTesseract() {
       }
     });
 
+    /* ── Change A: character whitelist ──────────────────────────────────
+       Restrict Tesseract to only these characters.
+       Why this helps:
+       Without whitelist, Tesseract considers every character in its
+       trained set — including lowercase letters, punctuation, symbols.
+       A condensed 'J' competes against 'I', 'i', 'l', '|', '1', '!'.
+       With whitelist, the same 'J' only competes against 'I' and '1'.
+       Smaller confusion space → better chance of the correct character.
+       The whitelist exactly matches what garment style codes contain:
+       uppercase A-Z and digits 0-9, nothing else.                      ── */
+    await tWorker.setParameters({
+      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    });
+
     ocrMethod = 'tesseract';
     setBanner('ready', '✓ Tesseract OCR ready — no API key needed');
     return true;
