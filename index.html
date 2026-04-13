@@ -161,6 +161,48 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
   font-size:12px;font-weight:500;cursor:pointer;color:var(--t2);font-family:var(--font)}
 .btn-s:active{border-color:rgba(108,103,212,.4);color:var(--acc)}
 
+/* ── TEXT SELECTION (pick) — Google Lens style drag-to-select ── */
+#st-pick{padding:0;gap:0;background:#000;flex:1}
+.pick-hdr{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;
+  background:rgba(0,0,0,.85);backdrop-filter:blur(10px);
+  position:absolute;top:0;left:0;right:0;z-index:10}
+.pick-hdr-t{font-size:13px;font-weight:600;color:#fff}
+.pick-hdr-s{font-size:10.5px;color:rgba(255,255,255,.55);margin-top:1px}
+/* The canvas fills the whole screen */
+#pick-main{position:relative;flex:1;display:flex;flex-direction:column;background:#000;min-height:400px}
+#pick-canvas{display:block;width:100%;cursor:crosshair;touch-action:none;
+  -webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+/* Bottom panel slides up over image */
+.pick-panel{background:rgba(12,16,28,.96);backdrop-filter:blur(16px);
+  border-top:1px solid rgba(255,255,255,.1);padding:14px 16px;
+  display:flex;flex-direction:column;gap:10px}
+.pick-sel-lbl{font-size:10px;font-weight:600;color:rgba(255,255,255,.4);
+  text-transform:uppercase;letter-spacing:.6px}
+.pick-sel-val{font-family:var(--mono);font-size:16px;font-weight:600;
+  color:#fff;letter-spacing:2px;min-height:24px;word-break:break-all;
+  line-height:1.4}
+.pick-sel-placeholder{color:rgba(255,255,255,.25);font-family:var(--font);
+  font-size:13px;font-weight:400;letter-spacing:0}
+.pick-input-row{display:flex;gap:8px;align-items:center}
+.pick-input-row input{flex:1;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.14);border-radius:9px;
+  padding:9px 12px;font-family:var(--mono);font-size:13px;
+  color:#fff;font-weight:500;letter-spacing:1px;outline:none;
+  -webkit-appearance:none}
+.pick-input-row input::placeholder{color:rgba(255,255,255,.25);font-family:var(--font);
+  font-size:12px;font-weight:400;letter-spacing:0}
+.pick-input-row input:focus{border-color:rgba(108,103,212,.7)}
+.pick-actions{display:flex;gap:8px}
+.pick-btn-gen{flex:2;background:var(--acc);color:#fff;border:none;border-radius:11px;
+  padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);
+  transition:all .15s}
+.pick-btn-gen:disabled{opacity:.35;cursor:not-allowed}
+.pick-btn-gen:not(:disabled):active{opacity:.85}
+.pick-btn-rescan{flex:1;background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);
+  border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:12px;
+  font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font)}
+.pick-hint-bar{font-size:10.5px;color:rgba(255,255,255,.35);text-align:center}
+
 /* ── ERROR ── */
 #st-err{align-items:center;justify-content:center;gap:16px;padding:40px 20px;min-height:400px}
 .err-ic{width:66px;height:66px;border-radius:50%;background:rgba(217,72,72,.08);
@@ -382,6 +424,48 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
     <div class="err-row">
       <button class="btn-p" onclick="openCam()">📷 Camera</button>
       <button class="btn-p2" onclick="goIdle()">📁 Browse</button>
+    </div>
+  </div>
+
+  <!-- TEXT SELECTION — Google Lens style drag-to-select -->
+  <div id="st-pick" class="st">
+    <div id="pick-main">
+      <!-- Sticky header over image -->
+      <div class="pick-hdr">
+        <div>
+          <div class="pick-hdr-t">Drag to select text</div>
+          <div class="pick-hdr-s">Draw over the code · or type below</div>
+        </div>
+        <button style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+          border-radius:8px;padding:5px 12px;font-size:11px;color:rgba(255,255,255,.8);
+          cursor:pointer;font-family:var(--font)" onclick="goIdle()">✕</button>
+      </div>
+
+      <!-- Single canvas — image + OCR boxes + drag selection all drawn here -->
+      <canvas id="pick-canvas" ontouchstart="pickTouchStart(event)"
+              ontouchmove="pickTouchMove(event)" ontouchend="pickTouchEnd(event)"></canvas>
+    </div>
+
+    <!-- Bottom panel -->
+    <div class="pick-panel">
+      <div>
+        <div class="pick-sel-lbl">Selected text</div>
+        <div id="pick-sel-val" class="pick-sel-val">
+          <span class="pick-sel-placeholder">Draw over the text above</span>
+        </div>
+      </div>
+      <div class="pick-input-row">
+        <input type="text" id="pick-manual-inp" placeholder="or type / paste code here"
+               autocomplete="off" autocorrect="off" autocapitalize="characters"
+               spellcheck="false" oninput="onPickManualInput(this.value)">
+      </div>
+      <div class="pick-hint-bar">Drag finger over label text · tap ✕ to clear selection</div>
+      <div class="pick-actions">
+        <button class="pick-btn-gen" id="pick-gen-btn" onclick="generateFromPick()" disabled>
+          ✓ Generate Barcode
+        </button>
+        <button class="pick-btn-rescan" onclick="goIdle()">↩ Rescan</button>
+      </div>
     </div>
   </div>
 
@@ -608,6 +692,42 @@ async function runOCR(canvas) {
   throw new Error('No OCR method available');
 }
 
+/* ── Run OCR and return BOTH text AND bounding boxes ────────────────────────
+   Returns array of: { text, x, y, w, h } in canvas pixel coordinates.
+   Used by the text-selection (pick) screen.                               ── */
+async function runOCRWithBoxes(canvas) {
+  await ensureOCR();
+
+  if (ocrMethod === 'textdetector') {
+    const detector = new TextDetector();
+    const results  = await detector.detect(canvas);
+    return results
+      .filter(r => r.rawValue && r.rawValue.trim())
+      .map(r => {
+        const b = r.boundingBox;
+        return { text: r.rawValue.trim(), x: b.x, y: b.y, w: b.width, h: b.height };
+      });
+  }
+
+  if (ocrMethod === 'tesseract') {
+    const dataURL = canvas.toDataURL('image/png');
+    const result  = await tWorker.recognize(dataURL);
+    /* Tesseract returns word-level boxes in result.data.words */
+    const words = result.data.words || [];
+    return words
+      .filter(w => w.text && w.text.trim() && w.confidence > 30)
+      .map(w => ({
+        text: w.text.trim(),
+        x: w.bbox.x0,
+        y: w.bbox.y0,
+        w: w.bbox.x1 - w.bbox.x0,
+        h: w.bbox.y1 - w.bbox.y0
+      }));
+  }
+
+  return [];
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    EXPERT MULTI-PASS IMAGE ENGINE
    ───────────────────────────────────────────────────────────────────────
@@ -757,7 +877,7 @@ function buildSinglePass(img) {
 
 /* ── State ── */
 function setState(id) {
-  ['idle','cam','proc','res','err','hist'].forEach(s => {
+  ['idle','cam','proc','res','err','hist','pick'].forEach(s => {
     const el = document.getElementById('st-' + s), on = s === id;
     el.classList.toggle('on', on); el.style.display = on ? 'flex' : 'none'; el.style.flexDirection = 'column';
   });
@@ -1140,41 +1260,282 @@ function dlOneByCode(code, card) {
   toast('Saved '+code+'.png', 'ok');
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   GOOGLE LENS STYLE DRAG-TO-SELECT
+   ─────────────────────────────────────────────────────────────────────
+   How it works:
+   1. showPickScreen() draws the scanned image onto a full-width canvas,
+      then draws semi-transparent purple boxes over every OCR text region.
+   2. User drags finger (touch) or mouse over the area containing the code.
+   3. As they drag, a blue selection rectangle is drawn live on the canvas.
+   4. On release, all OCR boxes that overlap the selection are collected.
+      Their text is concatenated → shown in the "Selected text" field.
+   5. User taps Generate Barcode → barcode is created from selected text.
+
+   The canvas is redrawn on every drag frame:
+     layer 1: original image
+     layer 2: all OCR boxes (dim purple)
+     layer 3: boxes inside selection (bright gold highlight)
+     layer 4: drag selection rectangle (blue outline + fill)
+
+   Works with touch (mobile) and mouse (desktop).
+   Manual text input is always available as fallback.
+═══════════════════════════════════════════════════════════════════════ */
+
+let pickOcrBoxes   = [];   // [{text,x,y,w,h}] in canvas display pixels
+let pickImgBitmap  = null; // ImageBitmap of the original photo for fast redraw
+let pickSelected   = '';   // currently selected text
+let pickIsDragging = false;
+let pickDragStart  = {x:0, y:0};
+let pickDragCur    = {x:0, y:0};
+let pickCanvasW    = 0;
+let pickCanvasH    = 0;
+let pickImgCanvas  = null; // preprocessed canvas (kept for coordinate mapping)
+
+/* ── Entry point: called by processB64 after OCR ── */
+function showPickScreen(imgCanvas, boxes) {
+  pickImgCanvas  = imgCanvas;
+  pickOcrBoxes   = boxes;
+  pickSelected   = '';
+  pickIsDragging = false;
+
+  /* Reset UI */
+  document.getElementById('pick-sel-val').innerHTML =
+    '<span class="pick-sel-placeholder">Draw over the text above</span>';
+  document.getElementById('pick-manual-inp').value = '';
+  setPickBtn(false);
+
+  /* Size the canvas to fill the available width */
+  const cv  = document.getElementById('pick-canvas');
+  const maxW = Math.min(window.innerWidth, 480);
+  const scale = Math.min(1, maxW / imgCanvas.width);
+  pickCanvasW = Math.round(imgCanvas.width  * scale);
+  pickCanvasH = Math.round(imgCanvas.height * scale);
+  cv.width  = pickCanvasW;
+  cv.height = pickCanvasH;
+  cv.style.width  = pickCanvasW + 'px';
+  cv.style.height = pickCanvasH + 'px';
+
+  /* Scale OCR boxes to canvas display coordinates */
+  const scX = pickCanvasW / imgCanvas.width;
+  const scY = pickCanvasH / imgCanvas.height;
+  pickOcrBoxes = boxes.map(b => ({
+    text: b.text,
+    x: b.x * scX, y: b.y * scY,
+    w: b.w * scX, h: b.h * scY
+  }));
+
+  /* Create ImageBitmap for fast redraws */
+  createImageBitmap(imgCanvas).then(bmp => {
+    pickImgBitmap = bmp;
+    redrawPick(null);
+  }).catch(() => {
+    pickImgBitmap = null;
+    redrawPick(null);
+  });
+
+  /* Attach mouse events (desktop) */
+  cv.onmousedown  = e => { e.preventDefault(); const p = canvasPos(cv,e); pickDragStart=p; pickDragCur=p; pickIsDragging=true; };
+  cv.onmousemove  = e => { if(!pickIsDragging) return; pickDragCur=canvasPos(cv,e); redrawPick(selRect()); };
+  cv.onmouseup    = e => { if(!pickIsDragging) return; pickIsDragging=false; pickDragCur=canvasPos(cv,e); finaliseSelection(); };
+  cv.onmouseleave = e => { if(pickIsDragging){ pickIsDragging=false; finaliseSelection(); } };
+
+  setState('pick');
+}
+
+/* Convert mouse/touch event coords → canvas pixel coords */
+function canvasPos(cv, e) {
+  const r = cv.getBoundingClientRect();
+  const scX = cv.width  / r.width;
+  const scY = cv.height / r.height;
+  const clientX = e.clientX ?? (e.touches && e.touches[0] ? e.touches[0].clientX : e.changedTouches[0].clientX);
+  const clientY = e.clientY ?? (e.touches && e.touches[0] ? e.touches[0].clientY : e.changedTouches[0].clientY);
+  return { x: (clientX - r.left) * scX, y: (clientY - r.top) * scY };
+}
+
+/* Touch handlers */
+function pickTouchStart(e) {
+  e.preventDefault();
+  const p = canvasPos(document.getElementById('pick-canvas'), e);
+  pickDragStart = p; pickDragCur = p; pickIsDragging = true;
+}
+function pickTouchMove(e) {
+  e.preventDefault();
+  if (!pickIsDragging) return;
+  pickDragCur = canvasPos(document.getElementById('pick-canvas'), e);
+  redrawPick(selRect());
+}
+function pickTouchEnd(e) {
+  e.preventDefault();
+  if (!pickIsDragging) return;
+  pickIsDragging = false;
+  finaliseSelection();
+}
+
+/* Compute normalised selection rectangle from drag start/end */
+function selRect() {
+  const x = Math.min(pickDragStart.x, pickDragCur.x);
+  const y = Math.min(pickDragStart.y, pickDragCur.y);
+  const w = Math.abs(pickDragCur.x - pickDragStart.x);
+  const h = Math.abs(pickDragCur.y - pickDragStart.y);
+  return { x, y, w, h };
+}
+
+/* Check if box overlaps selection rectangle (any intersection) */
+function overlaps(box, sel) {
+  if (!sel || sel.w < 5 || sel.h < 5) return false;
+  return !(box.x + box.w < sel.x || box.x > sel.x + sel.w ||
+           box.y + box.h < sel.y || box.y > sel.y + sel.h);
+}
+
+/* Redraw the canvas: image + OCR boxes + selection rectangle */
+function redrawPick(sel) {
+  const cv  = document.getElementById('pick-canvas');
+  const ctx = cv.getContext('2d');
+
+  /* Layer 1: original image */
+  if (pickImgBitmap) {
+    ctx.drawImage(pickImgBitmap, 0, 0, pickCanvasW, pickCanvasH);
+  } else if (pickImgCanvas) {
+    ctx.drawImage(pickImgCanvas, 0, 0, pickCanvasW, pickCanvasH);
+  } else {
+    ctx.fillStyle = '#222'; ctx.fillRect(0,0,pickCanvasW,pickCanvasH);
+  }
+
+  /* Layer 2: all OCR boxes — dim purple outline */
+  ctx.strokeStyle = 'rgba(108,103,212,0.7)';
+  ctx.lineWidth   = 1.5;
+  ctx.fillStyle   = 'rgba(108,103,212,0.08)';
+  for (const b of pickOcrBoxes) {
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+  }
+
+  /* Layer 3: boxes inside selection — bright gold highlight */
+  if (sel) {
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth   = 2;
+    ctx.fillStyle   = 'rgba(255,215,0,0.28)';
+    for (const b of pickOcrBoxes) {
+      if (overlaps(b, sel)) {
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+        ctx.strokeRect(b.x, b.y, b.w, b.h);
+      }
+    }
+  }
+
+  /* Layer 4: drag selection rectangle — blue */
+  if (sel && sel.w > 3 && sel.h > 3) {
+    ctx.strokeStyle = 'rgba(100,180,255,0.95)';
+    ctx.lineWidth   = 2;
+    ctx.setLineDash([6, 3]);
+    ctx.fillStyle   = 'rgba(100,180,255,0.08)';
+    ctx.fillRect(sel.x, sel.y, sel.w, sel.h);
+    ctx.strokeRect(sel.x, sel.y, sel.w, sel.h);
+    ctx.setLineDash([]);
+  }
+}
+
+/* Called when drag ends — collect text from selected boxes, update UI */
+function finaliseSelection() {
+  const sel = selRect();
+  /* Collect all OCR boxes that overlap the selection, sorted left-to-right */
+  const hit = pickOcrBoxes
+    .filter(b => overlaps(b, sel))
+    .sort((a, b) => a.x - b.x);
+
+  redrawPick(sel); // keep gold highlights visible after drag ends
+
+  if (hit.length === 0) return;
+
+  /* Concatenate text, normalise */
+  const raw  = hit.map(b => b.text).join(' ');
+  const norm = normTok(raw);
+  pickSelected = norm;
+
+  const valEl = document.getElementById('pick-sel-val');
+  valEl.innerHTML = '';
+  valEl.textContent = norm || raw;
+  document.getElementById('pick-manual-inp').value = '';
+  setPickBtn(norm.length >= 2 || raw.trim().length >= 2);
+}
+
+/* Clear selection when user taps ✕ — kept for future use */
+function clearPickSelection() {
+  pickSelected = '';
+  document.getElementById('pick-sel-val').innerHTML =
+    '<span class="pick-sel-placeholder">Draw over the text above</span>';
+  document.getElementById('pick-manual-inp').value = '';
+  setPickBtn(false);
+  redrawPick(null);
+}
+
+function onPickManualInput(val) {
+  const n = normTok(val);
+  pickSelected = n || val.trim();
+  const valEl = document.getElementById('pick-sel-val');
+  valEl.innerHTML = '';
+  valEl.textContent = pickSelected || '—';
+  redrawPick(null); // clear selection rectangle
+  setPickBtn(pickSelected.length >= 2);
+}
+
+function setPickBtn(enabled) {
+  const btn = document.getElementById('pick-gen-btn');
+  btn.disabled = !enabled;
+}
+
+function generateFromPick() {
+  const raw  = (pickSelected || '').trim();
+  const code = normTok(raw) || raw.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if (!code || code.length < 2) { toast('Select or type a code first', 'er'); return; }
+
+  currentCodes = [code];
+  const list = document.getElementById('bc-list');
+  list.innerHTML = '';
+  const { wrap } = bcCard(code, 0, null, null);
+  list.appendChild(wrap);
+
+  document.getElementById('sv-n').textContent = 1;
+  document.getElementById('sv-t').textContent = '—';
+  addHist([code]);
+  document.getElementById('sv-h').textContent = scanHistory.length;
+  setState('res');
+  toast('Barcode generated ✓', 'ok');
+}
+
 /* ── Steps (passive labels — new pipeline drives them directly) ── */
 function startSteps() {} // no-op — new pipeline sets labels directly
 function stopSteps()  {} // no-op
 function cancelProcess() { cancelled = true; goIdle(); toast('Cancelled', 'ok'); }
 
-/* ── Main pipeline — 4-pass ensemble ── */
+/* ── Main pipeline — OCR → always show pick screen ──────────────────────
+   Every scan goes through:
+   1. Image quality check
+   2. OCR to detect all text regions with bounding boxes
+   3. Pick screen — user taps the text they want → barcode generated
+   No automatic prefix extraction. No auto-jump to results.
+   User is always in control of what becomes a barcode.               ── */
 async function processB64(b64, mime) {
   cancelled = false; currentCodes = []; setState('proc');
-  const t0 = Date.now();
 
-  // Reset step labels
   ['ps0','ps1','ps2','ps3'].forEach((id, i) => {
     const el = document.getElementById(id);
     el.classList.remove('on');
-    el.textContent = ['① Checking image quality…','② Running OCR…',
-                      '③ Extracting prefix codes…','④ Generating barcodes…'][i];
+    el.textContent = ['① Checking image quality…','② Reading text regions…',
+                      '③ Preparing selection view…','④ Ready to select…'][i];
   });
   document.getElementById('ps0').classList.add('on');
 
   try {
-    /* ── Load image ─────────────────────────────────────────────── */
+    /* ── Load image ── */
     let img;
-    try {
-      img = await loadImg(b64, mime);
-    } catch(e) {
-      throw new Error('Could not decode image — try a different photo.');
-    }
+    try { img = await loadImg(b64, mime); }
+    catch(e) { throw new Error('Could not decode image — try a different photo.'); }
     if (cancelled) return;
 
-    /* ── Blur check ─────────────────────────────────────────────── */
+    /* ── Blur check ── */
     const score = blurScore(img);
-    const scoreLabel = score < BLUR_THRESHOLD ? '❌ too blurry'
-                     : score < 40             ? '⚠ borderline'
-                     :                          '✓ sharp';
-
     if (score < BLUR_THRESHOLD) {
       document.getElementById('err-t').textContent = 'Image Too Blurry';
       document.getElementById('err-msg').textContent =
@@ -1183,101 +1544,37 @@ async function processB64(b64, mime) {
         '• TAP the label on screen before pressing capture — this locks focus\n' +
         '• Distance: hold phone 15–20 cm (6–8 inches) from label\n' +
         '• Flatten the label completely — no curves or folds\n' +
-        '• Good lighting — daylight or a lamp shining directly on label\n' +
-        '• Use rear camera, not front (rear has better focus for close objects)';
+        '• Good lighting — daylight or a lamp shining directly on label';
       document.getElementById('ocr-debug').style.display = 'none';
       setState('err'); return;
     }
 
-    /* ── Strategy-aware OCR routing ─────────────────────────────────
-       TextDetector (Android Chrome / Desktop Chrome):
-         • 1 pass only — Google ML Kit is accurate in a single run
-         • Lightweight preprocessing — neural network does its own internally
-         • Expected time: 0.5–1.5 seconds
-       Tesseract (iPhone / Firefox / any non-TextDetector browser):
-         • Up to 4 passes — needed to compensate for Tesseract's weaker
-           handling of fabric texture, blur, and contrast variation
-         • Early exit: stops as soon as a valid code is found, so clean
-           labels often finish after Pass 1 (~3–5 s instead of 14 s)    ── */
+    /* ── OCR: get all text regions with bounding boxes ── */
     document.getElementById('ps0').classList.remove('on');
-    document.getElementById('ps0').textContent = `① Image quality: ${score.toFixed(0)} ${scoreLabel}`;
+    document.getElementById('ps0').textContent = `① Image quality: ${score.toFixed(0)} ✓`;
     document.getElementById('ps1').classList.add('on');
 
-    const isNative = ocrMethod === 'textdetector';
-    const passes   = isNative ? buildSinglePass(img) : buildPasses(img);
+    const pickCanvas = buildSinglePass(img)[0];
     if (cancelled) return;
 
-    const allText = [];
-    for (let i = 0; i < passes.length; i++) {
-      if (cancelled) return;
-      document.getElementById('ps1').textContent = isNative
-        ? '② Native OCR (Google ML Kit)…'
-        : `② Tesseract pass ${i+1} of ${passes.length}…`;
-      try {
-        const txt = await runOCR(passes[i]);
-        if (txt && txt.trim()) allText.push(txt);
-      } catch(e) {
-        console.warn('OCR pass', i + 1, 'failed:', e.message);
-      }
-      /* Early exit for Tesseract: stop as soon as a code is found.
-         TextDetector always runs exactly 1 pass so this branch is
-         never reached for it.                                        */
-      if (!isNative && allText.length > 0) {
-        const earlyCheck = extractCodesFromPasses(allText);
-        if (earlyCheck.length > 0) {
-          document.getElementById('ps1').textContent =
-            `② Found after pass ${i+1} — skipping remaining ${passes.length - i - 1} pass(es)`;
-          break;
-        }
-      }
+    document.getElementById('ps1').textContent = ocrMethod === 'textdetector'
+      ? '② Reading text (Google ML Kit)…'
+      : '② Reading text (Tesseract)…';
+
+    let boxes = [];
+    try {
+      boxes = await runOCRWithBoxes(pickCanvas);
+    } catch(e) {
+      console.warn('OCR with boxes failed:', e.message);
     }
     if (cancelled) return;
 
     document.getElementById('ps1').classList.remove('on');
-    document.getElementById('ps1').textContent = isNative
-      ? '② Native OCR complete'
-      : `② Tesseract done (${allText.length} pass(es) ran)`;
     document.getElementById('ps2').classList.add('on');
+    document.getElementById('ps2').textContent = `③ Found ${boxes.length} text region(s) — opening selection view…`;
 
-    const mergedText = allText.join('\n');
-    const codes = extractCodesFromPasses(allText);
-
-    document.getElementById('ps2').classList.remove('on');
-    document.getElementById('ps3').classList.add('on');
-
-    if (!codes.length) {
-      document.getElementById('err-t').textContent = 'No Codes Found';
-      document.getElementById('err-msg').textContent =
-        `Image sharpness: ${score.toFixed(0)} ✓\nOCR passes: ${allText.length}/${passes.length} ran\n\n` +
-        'No matching prefix codes detected. Try:\n' +
-        '• Ensure the label has codes starting with your configured prefixes\n' +
-        '• Better lighting — shine a lamp directly on the label\n' +
-        '• Flatten the label completely on a hard surface\n' +
-        '• Try browsing a saved photo with better contrast';
-      const dbg = document.getElementById('ocr-debug');
-      const bod = document.getElementById('ocr-dbg-body');
-      if (mergedText.trim()) {
-        dbg.style.display = 'block';
-        bod.textContent = `=== Merged OCR output (${allText.length} passes) ===\n\n` + mergedText.trim();
-      } else {
-        dbg.style.display = 'none';
-      }
-      setState('err'); return;
-    }
-
-    /* ── Build barcode cards ─────────────────────────────────────── */
-    currentCodes = codes;
-    const list = document.getElementById('bc-list'); list.innerHTML = '';
-    codes.forEach((code, i) => {
-      const { wrap } = bcCard(code, i, allText.length, passes.length);
-      list.appendChild(wrap);
-    });
-
-    const ms = Date.now() - t0;
-    document.getElementById('sv-n').textContent = codes.length;
-    document.getElementById('sv-t').textContent = ms < 1000 ? ms + 'ms' : (ms/1000).toFixed(1) + 's';
-    addHist(codes); document.getElementById('sv-h').textContent = scanHistory.length;
-    setState('res');
+    /* ── Always show pick screen — user selects what they want ── */
+    showPickScreen(pickCanvas, boxes);
 
   } catch(err) {
     if (cancelled) return;
