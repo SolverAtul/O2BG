@@ -418,10 +418,10 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
   <div id="st-pick" class="st">
     <div class="pick-hdr">
       <div>
-        <div class="pick-hdr-t">Tap the code you want</div>
-        <div class="pick-hdr-s">Tap any highlighted text · or type/paste below</div>
+        <div class="pick-hdr-t">Select the code you want</div>
+        <div class="pick-hdr-s">Tap a highlighted box · or type / paste the code below</div>
       </div>
-      <button class="btn-p2" style="padding:7px 14px;font-size:12px" onclick="goIdle()">✕ Cancel</button>
+      <button class="btn-p2" style="padding:7px 14px;font-size:12px" onclick="goIdle()">✕ Rescan</button>
     </div>
 
     <!-- Image with tappable text boxes overlaid -->
@@ -446,12 +446,12 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
                style="text-transform:uppercase">
       </div>
 
-      <div class="pick-hint">All detected text is highlighted · gold = currently selected</div>
+      <div class="pick-hint">All detected text is highlighted in purple · tap to select · selected turns gold</div>
 
       <div class="pick-actions">
         <button class="btn-p" id="pick-gen-btn" onclick="generateFromPick()"
                 style="flex:2;opacity:.45;cursor:not-allowed" disabled>
-          Generate Barcode →
+          ✓ Generate Barcode
         </button>
         <button class="btn-s" style="flex:1" onclick="goIdle()">← Rescan</button>
       </div>
@@ -1400,36 +1400,33 @@ function startSteps() {} // no-op — new pipeline sets labels directly
 function stopSteps()  {} // no-op
 function cancelProcess() { cancelled = true; goIdle(); toast('Cancelled', 'ok'); }
 
-/* ── Main pipeline — 4-pass ensemble ── */
+/* ── Main pipeline — OCR → always show pick screen ──────────────────────
+   Every scan goes through:
+   1. Image quality check
+   2. OCR to detect all text regions with bounding boxes
+   3. Pick screen — user taps the text they want → barcode generated
+   No automatic prefix extraction. No auto-jump to results.
+   User is always in control of what becomes a barcode.               ── */
 async function processB64(b64, mime) {
   cancelled = false; currentCodes = []; setState('proc');
-  const t0 = Date.now();
 
-  // Reset step labels
   ['ps0','ps1','ps2','ps3'].forEach((id, i) => {
     const el = document.getElementById(id);
     el.classList.remove('on');
-    el.textContent = ['① Checking image quality…','② Running OCR…',
-                      '③ Extracting prefix codes…','④ Generating barcodes…'][i];
+    el.textContent = ['① Checking image quality…','② Reading text regions…',
+                      '③ Preparing selection view…','④ Ready to select…'][i];
   });
   document.getElementById('ps0').classList.add('on');
 
   try {
-    /* ── Load image ─────────────────────────────────────────────── */
+    /* ── Load image ── */
     let img;
-    try {
-      img = await loadImg(b64, mime);
-    } catch(e) {
-      throw new Error('Could not decode image — try a different photo.');
-    }
+    try { img = await loadImg(b64, mime); }
+    catch(e) { throw new Error('Could not decode image — try a different photo.'); }
     if (cancelled) return;
 
-    /* ── Blur check ─────────────────────────────────────────────── */
+    /* ── Blur check ── */
     const score = blurScore(img);
-    const scoreLabel = score < BLUR_THRESHOLD ? '❌ too blurry'
-                     : score < 40             ? '⚠ borderline'
-                     :                          '✓ sharp';
-
     if (score < BLUR_THRESHOLD) {
       document.getElementById('err-t').textContent = 'Image Too Blurry';
       document.getElementById('err-msg').textContent =
@@ -1438,117 +1435,37 @@ async function processB64(b64, mime) {
         '• TAP the label on screen before pressing capture — this locks focus\n' +
         '• Distance: hold phone 15–20 cm (6–8 inches) from label\n' +
         '• Flatten the label completely — no curves or folds\n' +
-        '• Good lighting — daylight or a lamp shining directly on label\n' +
-        '• Use rear camera, not front (rear has better focus for close objects)';
+        '• Good lighting — daylight or a lamp shining directly on label';
       document.getElementById('ocr-debug').style.display = 'none';
       setState('err'); return;
     }
 
-    /* ── Strategy-aware OCR routing ─────────────────────────────────
-       TextDetector (Android Chrome / Desktop Chrome):
-         • 1 pass only — Google ML Kit is accurate in a single run
-         • Lightweight preprocessing — neural network does its own internally
-         • Expected time: 0.5–1.5 seconds
-       Tesseract (iPhone / Firefox / any non-TextDetector browser):
-         • Up to 4 passes — needed to compensate for Tesseract's weaker
-           handling of fabric texture, blur, and contrast variation
-         • Early exit: stops as soon as a valid code is found, so clean
-           labels often finish after Pass 1 (~3–5 s instead of 14 s)    ── */
+    /* ── OCR: get all text regions with bounding boxes ── */
     document.getElementById('ps0').classList.remove('on');
-    document.getElementById('ps0').textContent = `① Image quality: ${score.toFixed(0)} ${scoreLabel}`;
+    document.getElementById('ps0').textContent = `① Image quality: ${score.toFixed(0)} ✓`;
     document.getElementById('ps1').classList.add('on');
 
-    const isNative = ocrMethod === 'textdetector';
-    const passes   = isNative ? buildSinglePass(img) : buildPasses(img);
+    const pickCanvas = buildSinglePass(img)[0];
     if (cancelled) return;
 
-    const allText = [];
-    for (let i = 0; i < passes.length; i++) {
-      if (cancelled) return;
-      document.getElementById('ps1').textContent = isNative
-        ? '② Native OCR (Google ML Kit)…'
-        : `② Tesseract pass ${i+1} of ${passes.length}…`;
-      try {
-        const txt = await runOCR(passes[i]);
-        if (txt && txt.trim()) allText.push(txt);
-      } catch(e) {
-        console.warn('OCR pass', i + 1, 'failed:', e.message);
-      }
-      /* Early exit for Tesseract: stop as soon as a code is found.
-         TextDetector always runs exactly 1 pass so this branch is
-         never reached for it.                                        */
-      if (!isNative && allText.length > 0) {
-        const earlyCheck = extractCodesFromPasses(allText);
-        if (earlyCheck.length > 0) {
-          document.getElementById('ps1').textContent =
-            `② Found after pass ${i+1} — skipping remaining ${passes.length - i - 1} pass(es)`;
-          break;
-        }
-      }
+    document.getElementById('ps1').textContent = ocrMethod === 'textdetector'
+      ? '② Reading text (Google ML Kit)…'
+      : '② Reading text (Tesseract)…';
+
+    let boxes = [];
+    try {
+      boxes = await runOCRWithBoxes(pickCanvas);
+    } catch(e) {
+      console.warn('OCR with boxes failed:', e.message);
     }
     if (cancelled) return;
 
     document.getElementById('ps1').classList.remove('on');
-    document.getElementById('ps1').textContent = isNative
-      ? '② Native OCR complete'
-      : `② Tesseract done (${allText.length} pass(es) ran)`;
     document.getElementById('ps2').classList.add('on');
+    document.getElementById('ps2').textContent = `③ Found ${boxes.length} text region(s) — opening selection view…`;
 
-    const mergedText = allText.join('\n');
-    const codes = extractCodesFromPasses(allText);
-
-    document.getElementById('ps2').classList.remove('on');
-    document.getElementById('ps3').classList.add('on');
-
-    if (!codes.length) {
-      /* ── No matching prefix codes → show pick screen ──────────────────
-         Instead of an error, let the user manually tap the correct text.
-         Run OCR again specifically to get bounding boxes, then show the
-         pick screen with the image + all detected regions highlighted.    */
-      document.getElementById('ps2').textContent = '③ No prefix codes — preparing selection screen…';
-      try {
-        const pickCanvas = buildSinglePass(img)[0];
-        const boxes = await runOCRWithBoxes(pickCanvas);
-        if (boxes.length > 0) {
-          showPickScreen(pickCanvas, boxes);
-          return;
-        }
-      } catch(e) {
-        console.warn('runOCRWithBoxes failed:', e.message);
-      }
-      /* If even the box-detection failed, fall back to error screen */
-      document.getElementById('err-t').textContent = 'No Codes Found';
-      document.getElementById('err-msg').textContent =
-        `Image sharpness: ${score.toFixed(0)} ✓\nOCR passes: ${allText.length}/${passes.length} ran\n\n` +
-        'No matching prefix codes detected. Try:\n' +
-        '• Ensure the label has codes starting with your configured prefixes\n' +
-        '• Better lighting — shine a lamp directly on the label\n' +
-        '• Flatten the label completely on a hard surface\n' +
-        '• Try browsing a saved photo with better contrast';
-      const dbg = document.getElementById('ocr-debug');
-      const bod = document.getElementById('ocr-dbg-body');
-      if (mergedText.trim()) {
-        dbg.style.display = 'block';
-        bod.textContent = `=== Merged OCR output (${allText.length} passes) ===\n\n` + mergedText.trim();
-      } else {
-        dbg.style.display = 'none';
-      }
-      setState('err'); return;
-    }
-
-    /* ── Build barcode cards ─────────────────────────────────────── */
-    currentCodes = codes;
-    const list = document.getElementById('bc-list'); list.innerHTML = '';
-    codes.forEach((code, i) => {
-      const { wrap } = bcCard(code, i, allText.length, passes.length);
-      list.appendChild(wrap);
-    });
-
-    const ms = Date.now() - t0;
-    document.getElementById('sv-n').textContent = codes.length;
-    document.getElementById('sv-t').textContent = ms < 1000 ? ms + 'ms' : (ms/1000).toFixed(1) + 's';
-    addHist(codes); document.getElementById('sv-h').textContent = scanHistory.length;
-    setState('res');
+    /* ── Always show pick screen — user selects what they want ── */
+    showPickScreen(pickCanvas, boxes);
 
   } catch(err) {
     if (cancelled) return;
