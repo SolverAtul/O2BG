@@ -34,16 +34,8 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
 .st{display:none;flex-direction:column;flex:1}
 .st.on{display:flex}
 
-/* ── OCR banner ── */
-#ocr-banner{display:none !important}
-#ocr-banner svg{width:14px;height:14px;flex-shrink:0;fill:none;stroke-width:2;stroke-linecap:round}
-#ocr-banner.checking{background:rgba(108,103,212,.06);color:var(--t2)}
-#ocr-banner.checking svg{stroke:var(--acc);animation:rot 1.2s linear infinite}
-#ocr-banner.ready{background:rgba(26,143,106,.06);color:var(--acc2)}
-#ocr-banner.ready svg{stroke:var(--acc2)}
-#ocr-banner.fail{background:rgba(217,72,72,.06);color:var(--red)}
-#ocr-banner.fail svg{stroke:var(--red)}
-@keyframes rot{to{transform:rotate(360deg)}}
+/* ── OCR banner hidden ── */
+#ocr-banner{display:none!important}
 
 /* ── IDLE ── */
 #st-idle{padding:20px 16px;gap:16px}
@@ -56,23 +48,6 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
 .hero-t{font-size:16px;font-weight:600}
 .hero-s{font-size:12px;color:var(--t2);text-align:center;line-height:1.7}
 .act-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.act-paste{background:rgba(217,72,72,.09);border:1px solid rgba(217,72,72,.22);color:var(--red)}
-.act-paste:active{background:rgba(217,72,72,.18)}
-.paste-area{display:none;flex-direction:column;gap:8px;width:100%;animation:fadeIn .2s ease}
-.paste-area.open{display:flex}
-@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
-.paste-area textarea{width:100%;background:var(--s2);border:1px solid var(--bdr2);border-radius:12px;
-  padding:12px 14px;font-family:var(--mono);font-size:14px;color:var(--t1);font-weight:500;
-  letter-spacing:1px;outline:none;resize:none;line-height:1.5;min-height:64px;
-  -webkit-appearance:none}
-.paste-area textarea:focus{border-color:var(--acc)}
-.paste-area textarea::placeholder{color:var(--t3);font-family:var(--font);font-size:12px;
-  font-weight:400;letter-spacing:0}
-.paste-gen-btn{background:var(--acc);color:#fff;border:none;border-radius:11px;
-  padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);
-  width:100%;opacity:.4;transition:all .15s}
-.paste-gen-btn.active{opacity:1}
-.paste-gen-btn.active:active{opacity:.85}
 .act{border:none;border-radius:14px;padding:16px 12px;cursor:pointer;font-family:var(--font);
   font-size:13px;font-weight:600;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:8px}
 .act svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
@@ -177,47 +152,20 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
   font-size:12px;font-weight:500;cursor:pointer;color:var(--t2);font-family:var(--font)}
 .btn-s:active{border-color:rgba(108,103,212,.4);color:var(--acc)}
 
-/* ── TEXT SELECTION (pick) — Google Lens style drag-to-select ── */
-#st-pick{padding:0;gap:0;background:#000;flex:1}
-.pick-hdr{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;
-  background:rgba(0,0,0,.85);backdrop-filter:blur(10px);
-  position:absolute;top:0;left:0;right:0;z-index:10}
-.pick-hdr-t{font-size:13px;font-weight:600;color:#fff}
-.pick-hdr-s{font-size:10.5px;color:rgba(255,255,255,.55);margin-top:1px}
-/* The canvas fills the whole screen */
-#pick-main{position:relative;flex:1;display:flex;flex-direction:column;background:#000;min-height:400px}
-#pick-canvas{display:block;width:100%;cursor:crosshair;touch-action:none;
-  -webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
-/* Bottom panel slides up over image */
-.pick-panel{background:rgba(12,16,28,.96);backdrop-filter:blur(16px);
-  border-top:1px solid rgba(255,255,255,.1);padding:14px 16px;
-  display:flex;flex-direction:column;gap:10px}
-.pick-sel-lbl{font-size:10px;font-weight:600;color:rgba(255,255,255,.4);
-  text-transform:uppercase;letter-spacing:.6px}
-.pick-sel-val{font-family:var(--mono);font-size:16px;font-weight:600;
-  color:#fff;letter-spacing:2px;min-height:24px;word-break:break-all;
-  line-height:1.4}
-.pick-sel-placeholder{color:rgba(255,255,255,.25);font-family:var(--font);
-  font-size:13px;font-weight:400;letter-spacing:0}
-.pick-input-row{display:flex;gap:8px;align-items:center}
-.pick-input-row input{flex:1;background:rgba(255,255,255,.07);
-  border:1px solid rgba(255,255,255,.14);border-radius:9px;
-  padding:9px 12px;font-family:var(--mono);font-size:13px;
-  color:#fff;font-weight:500;letter-spacing:1px;outline:none;
-  -webkit-appearance:none}
-.pick-input-row input::placeholder{color:rgba(255,255,255,.25);font-family:var(--font);
-  font-size:12px;font-weight:400;letter-spacing:0}
-.pick-input-row input:focus{border-color:rgba(108,103,212,.7)}
-.pick-actions{display:flex;gap:8px}
-.pick-btn-gen{flex:2;background:var(--acc);color:#fff;border:none;border-radius:11px;
-  padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);
-  transition:all .15s}
-.pick-btn-gen:disabled{opacity:.35;cursor:not-allowed}
-.pick-btn-gen:not(:disabled):active{opacity:.85}
-.pick-btn-rescan{flex:1;background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);
-  border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:12px;
-  font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font)}
-.pick-hint-bar{font-size:10.5px;color:rgba(255,255,255,.35);text-align:center}
+
+/* ── PASTE AREA (home screen) ── */
+.act-paste{background:rgba(217,72,72,.09);border:1px solid rgba(217,72,72,.22);color:var(--red);width:100%;flex-direction:row;justify-content:center;gap:10px;padding:13px}
+.act-paste:active{background:rgba(217,72,72,.18)}
+.paste-area{display:none;flex-direction:column;gap:8px;width:100%}
+.paste-area.open{display:flex}
+.paste-area textarea{width:100%;background:var(--s2);border:1px solid var(--bdr2);border-radius:12px;
+  padding:12px 14px;font-family:var(--mono);font-size:14px;color:var(--t1);font-weight:500;
+  letter-spacing:1px;outline:none;resize:none;min-height:58px;-webkit-appearance:none;box-sizing:border-box}
+.paste-area textarea:focus{border-color:var(--acc)}
+.paste-area textarea::placeholder{color:var(--t3);font-family:var(--font);font-size:12px;font-weight:400;letter-spacing:0}
+.paste-gen-btn{background:var(--acc);color:#fff;border:none;border-radius:11px;
+  padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);opacity:.4}
+.paste-gen-btn.active{opacity:1}
 
 /* ── ERROR ── */
 #st-err{align-items:center;justify-content:center;gap:16px;padding:40px 20px;min-height:400px}
@@ -298,7 +246,6 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </div>
       <div class="hero-t">Drop label image here</div>
-      
     </div>
 
     <div class="act-row">
@@ -313,18 +260,17 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
     </div>
     <input type="file" id="fi" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" style="display:none" onchange="onFilePick(this)">
 
-    <!-- Paste / Type code directly → generate barcode instantly -->
-    <button class="act act-paste" style="width:100%;flex-direction:row;justify-content:center;gap:10px;padding:13px"
-            onclick="togglePasteArea()">
+    <!-- Paste / Type code directly → generate barcode -->
+    <button class="act act-paste" onclick="togglePasteArea()">
       <svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
       Paste or Type Code
     </button>
-
     <div class="paste-area" id="paste-area">
-      <textarea id="paste-inp" rows="2" placeholder="Paste or type code here (e.g. LPJKMGLFU72710)"
-                oninput="onPasteInput(this.value)"
-                autocomplete="off" autocorrect="off" autocapitalize="characters"
-                spellcheck="false"></textarea>
+      <textarea id="paste-inp" rows="2"
+        placeholder="Paste or type style code here (e.g. LPJKMGLFU72710)"
+        oninput="onPasteInput(this.value)"
+        autocomplete="off" autocorrect="off" autocapitalize="characters"
+        spellcheck="false"></textarea>
       <button class="paste-gen-btn" id="paste-gen-btn" onclick="generateFromPaste()" disabled>
         ✓ Generate Barcode
       </button>
@@ -460,48 +406,6 @@ html,body{background:var(--bg);color:var(--t1);font-family:var(--font);min-heigh
     </div>
   </div>
 
-  <!-- TEXT SELECTION — Google Lens style drag-to-select -->
-  <div id="st-pick" class="st">
-    <div id="pick-main">
-      <!-- Sticky header over image -->
-      <div class="pick-hdr">
-        <div>
-          <div class="pick-hdr-t">Drag to select text</div>
-          <div class="pick-hdr-s">Draw over the code · or type below</div>
-        </div>
-        <button style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
-          border-radius:8px;padding:5px 12px;font-size:11px;color:rgba(255,255,255,.8);
-          cursor:pointer;font-family:var(--font)" onclick="goIdle()">✕</button>
-      </div>
-
-      <!-- Single canvas — image + OCR boxes + drag selection all drawn here -->
-      <canvas id="pick-canvas" ontouchstart="pickTouchStart(event)"
-              ontouchmove="pickTouchMove(event)" ontouchend="pickTouchEnd(event)"></canvas>
-    </div>
-
-    <!-- Bottom panel -->
-    <div class="pick-panel">
-      <div>
-        <div class="pick-sel-lbl">Selected text</div>
-        <div id="pick-sel-val" class="pick-sel-val">
-          <span class="pick-sel-placeholder">Draw over the text above</span>
-        </div>
-      </div>
-      <div class="pick-input-row">
-        <input type="text" id="pick-manual-inp" placeholder="or type / paste code here"
-               autocomplete="off" autocorrect="off" autocapitalize="characters"
-               spellcheck="false" oninput="onPickManualInput(this.value)">
-      </div>
-      <div class="pick-hint-bar">Drag finger over label text · tap ✕ to clear selection</div>
-      <div class="pick-actions">
-        <button class="pick-btn-gen" id="pick-gen-btn" onclick="generateFromPick()" disabled>
-          ✓ Generate Barcode
-        </button>
-        <button class="pick-btn-rescan" onclick="goIdle()">↩ Rescan</button>
-      </div>
-    </div>
-  </div>
-
   <!-- HISTORY -->
   <div id="st-hist" class="st">
     <div class="hist-tb">
@@ -617,7 +521,7 @@ async function tryTextDetector() {
    STRATEGY 2: Tesseract.js v5 with blob URL bridge
 ════════════════════════════════════════════════════════════════════════ */
 async function tryTesseract() {
-  setBanner('checking', 'Loading Tesseract OCR engine…');
+  /* banner hidden */
   try {
     // Load main library
     try {
@@ -723,42 +627,6 @@ async function runOCR(canvas) {
   }
 
   throw new Error('No OCR method available');
-}
-
-/* ── Run OCR and return BOTH text AND bounding boxes ────────────────────────
-   Returns array of: { text, x, y, w, h } in canvas pixel coordinates.
-   Used by the text-selection (pick) screen.                               ── */
-async function runOCRWithBoxes(canvas) {
-  await ensureOCR();
-
-  if (ocrMethod === 'textdetector') {
-    const detector = new TextDetector();
-    const results  = await detector.detect(canvas);
-    return results
-      .filter(r => r.rawValue && r.rawValue.trim())
-      .map(r => {
-        const b = r.boundingBox;
-        return { text: r.rawValue.trim(), x: b.x, y: b.y, w: b.width, h: b.height };
-      });
-  }
-
-  if (ocrMethod === 'tesseract') {
-    const dataURL = canvas.toDataURL('image/png');
-    const result  = await tWorker.recognize(dataURL);
-    /* Tesseract returns word-level boxes in result.data.words */
-    const words = result.data.words || [];
-    return words
-      .filter(w => w.text && w.text.trim() && w.confidence > 30)
-      .map(w => ({
-        text: w.text.trim(),
-        x: w.bbox.x0,
-        y: w.bbox.y0,
-        w: w.bbox.x1 - w.bbox.x0,
-        h: w.bbox.y1 - w.bbox.y0
-      }));
-  }
-
-  return [];
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -910,7 +778,7 @@ function buildSinglePass(img) {
 
 /* ── State ── */
 function setState(id) {
-  ['idle','cam','proc','res','err','hist','pick'].forEach(s => {
+  ['idle','cam','proc','res','err','hist'].forEach(s => {
     const el = document.getElementById('st-' + s), on = s === id;
     el.classList.toggle('on', on); el.style.display = on ? 'flex' : 'none'; el.style.flexDirection = 'column';
   });
@@ -1005,51 +873,40 @@ function doCapture() {
   }, 'image/jpeg', 0.92);
 }
 
-/* ── File pick ── */
+/* ── Paste / Type code → barcode ── */
 function togglePasteArea() {
   const area = document.getElementById('paste-area');
-  const isOpen = area.classList.toggle('open');
-  if (isOpen) {
-    setTimeout(() => document.getElementById('paste-inp').focus(), 100);
-  } else {
+  const open = area.classList.toggle('open');
+  if (open) setTimeout(() => document.getElementById('paste-inp').focus(), 80);
+  else {
     document.getElementById('paste-inp').value = '';
-    document.getElementById('paste-gen-btn').disabled = true;
-    document.getElementById('paste-gen-btn').classList.remove('active');
+    const btn = document.getElementById('paste-gen-btn');
+    btn.disabled = true; btn.classList.remove('active');
   }
 }
-
 function onPasteInput(val) {
-  const code = val.toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+  const code = val.toUpperCase().replace(/[^A-Z0-9]/g,'').trim();
   const btn  = document.getElementById('paste-gen-btn');
   btn.disabled = code.length < 2;
   btn.classList.toggle('active', code.length >= 2);
 }
-
 function generateFromPaste() {
-  const raw  = document.getElementById('paste-inp').value;
-  const code = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+  const code = document.getElementById('paste-inp').value.toUpperCase().replace(/[^A-Z0-9]/g,'').trim();
   if (!code || code.length < 2) { toast('Please enter a code first', 'er'); return; }
-
-  /* Close paste area */
   document.getElementById('paste-area').classList.remove('open');
   document.getElementById('paste-inp').value = '';
   document.getElementById('paste-gen-btn').disabled = true;
   document.getElementById('paste-gen-btn').classList.remove('active');
-
-  /* Build barcode card and go to results */
   currentCodes = [code];
-  const list = document.getElementById('bc-list');
-  list.innerHTML = '';
-  const { wrap } = bcCard(code, 0, null, null);
-  list.appendChild(wrap);
+  const list = document.getElementById('bc-list'); list.innerHTML = '';
+  const {wrap} = bcCard(code, 0, null, null); list.appendChild(wrap);
   document.getElementById('sv-n').textContent = 1;
   document.getElementById('sv-t').textContent = '—';
-  addHist([code]);
-  document.getElementById('sv-h').textContent = scanHistory.length;
-  setState('res');
-  toast('Barcode generated ✓', 'ok');
+  addHist([code]); document.getElementById('sv-h').textContent = scanHistory.length;
+  setState('res'); toast('Barcode generated ✓', 'ok');
 }
 
+/* ── File pick ── */
 function onFilePick(inp) {
   const f = inp.files[0]; inp.value = '';
   if (!f) return;
@@ -1337,321 +1194,103 @@ function dlOneByCode(code, card) {
   toast('Saved '+code+'.png', 'ok');
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   GOOGLE LENS STYLE DRAG-TO-SELECT
-   ─────────────────────────────────────────────────────────────────────
-   How it works:
-   1. showPickScreen() draws the scanned image onto a full-width canvas,
-      then draws semi-transparent purple boxes over every OCR text region.
-   2. User drags finger (touch) or mouse over the area containing the code.
-   3. As they drag, a blue selection rectangle is drawn live on the canvas.
-   4. On release, all OCR boxes that overlap the selection are collected.
-      Their text is concatenated → shown in the "Selected text" field.
-   5. User taps Generate Barcode → barcode is created from selected text.
-
-   The canvas is redrawn on every drag frame:
-     layer 1: original image
-     layer 2: all OCR boxes (dim purple)
-     layer 3: boxes inside selection (bright gold highlight)
-     layer 4: drag selection rectangle (blue outline + fill)
-
-   Works with touch (mobile) and mouse (desktop).
-   Manual text input is always available as fallback.
-═══════════════════════════════════════════════════════════════════════ */
-
-let pickOcrBoxes   = [];   // [{text,x,y,w,h}] in canvas display pixels
-let pickImgBitmap  = null; // ImageBitmap of the original photo for fast redraw
-let pickSelected   = '';   // currently selected text
-let pickIsDragging = false;
-let pickDragStart  = {x:0, y:0};
-let pickDragCur    = {x:0, y:0};
-let pickCanvasW    = 0;
-let pickCanvasH    = 0;
-let pickImgCanvas  = null; // preprocessed canvas (kept for coordinate mapping)
-
-/* ── Entry point: called by processB64 after OCR ── */
-function showPickScreen(imgCanvas, boxes) {
-  pickImgCanvas  = imgCanvas;
-  pickOcrBoxes   = boxes;
-  pickSelected   = '';
-  pickIsDragging = false;
-
-  /* Reset UI */
-  document.getElementById('pick-sel-val').innerHTML =
-    '<span class="pick-sel-placeholder">Draw over the text above</span>';
-  document.getElementById('pick-manual-inp').value = '';
-  setPickBtn(false);
-
-  /* Size the canvas to fill the available width */
-  const cv  = document.getElementById('pick-canvas');
-  const maxW = Math.min(window.innerWidth, 480);
-  const scale = Math.min(1, maxW / imgCanvas.width);
-  pickCanvasW = Math.round(imgCanvas.width  * scale);
-  pickCanvasH = Math.round(imgCanvas.height * scale);
-  cv.width  = pickCanvasW;
-  cv.height = pickCanvasH;
-  cv.style.width  = pickCanvasW + 'px';
-  cv.style.height = pickCanvasH + 'px';
-
-  /* Scale OCR boxes to canvas display coordinates */
-  const scX = pickCanvasW / imgCanvas.width;
-  const scY = pickCanvasH / imgCanvas.height;
-  pickOcrBoxes = boxes.map(b => ({
-    text: b.text,
-    x: b.x * scX, y: b.y * scY,
-    w: b.w * scX, h: b.h * scY
-  }));
-
-  /* Create ImageBitmap for fast redraws */
-  createImageBitmap(imgCanvas).then(bmp => {
-    pickImgBitmap = bmp;
-    redrawPick(null);
-  }).catch(() => {
-    pickImgBitmap = null;
-    redrawPick(null);
-  });
-
-  /* Attach mouse events (desktop) */
-  cv.onmousedown  = e => { e.preventDefault(); const p = canvasPos(cv,e); pickDragStart=p; pickDragCur=p; pickIsDragging=true; };
-  cv.onmousemove  = e => { if(!pickIsDragging) return; pickDragCur=canvasPos(cv,e); redrawPick(selRect()); };
-  cv.onmouseup    = e => { if(!pickIsDragging) return; pickIsDragging=false; pickDragCur=canvasPos(cv,e); finaliseSelection(); };
-  cv.onmouseleave = e => { if(pickIsDragging){ pickIsDragging=false; finaliseSelection(); } };
-
-  setState('pick');
-}
-
-/* Convert mouse/touch event coords → canvas pixel coords */
-function canvasPos(cv, e) {
-  const r = cv.getBoundingClientRect();
-  const scX = cv.width  / r.width;
-  const scY = cv.height / r.height;
-  const clientX = e.clientX ?? (e.touches && e.touches[0] ? e.touches[0].clientX : e.changedTouches[0].clientX);
-  const clientY = e.clientY ?? (e.touches && e.touches[0] ? e.touches[0].clientY : e.changedTouches[0].clientY);
-  return { x: (clientX - r.left) * scX, y: (clientY - r.top) * scY };
-}
-
-/* Touch handlers */
-function pickTouchStart(e) {
-  e.preventDefault();
-  const p = canvasPos(document.getElementById('pick-canvas'), e);
-  pickDragStart = p; pickDragCur = p; pickIsDragging = true;
-}
-function pickTouchMove(e) {
-  e.preventDefault();
-  if (!pickIsDragging) return;
-  pickDragCur = canvasPos(document.getElementById('pick-canvas'), e);
-  redrawPick(selRect());
-}
-function pickTouchEnd(e) {
-  e.preventDefault();
-  if (!pickIsDragging) return;
-  pickIsDragging = false;
-  finaliseSelection();
-}
-
-/* Compute normalised selection rectangle from drag start/end */
-function selRect() {
-  const x = Math.min(pickDragStart.x, pickDragCur.x);
-  const y = Math.min(pickDragStart.y, pickDragCur.y);
-  const w = Math.abs(pickDragCur.x - pickDragStart.x);
-  const h = Math.abs(pickDragCur.y - pickDragStart.y);
-  return { x, y, w, h };
-}
-
-/* Check if box overlaps selection rectangle (any intersection) */
-function overlaps(box, sel) {
-  if (!sel || sel.w < 5 || sel.h < 5) return false;
-  return !(box.x + box.w < sel.x || box.x > sel.x + sel.w ||
-           box.y + box.h < sel.y || box.y > sel.y + sel.h);
-}
-
-/* Redraw the canvas: image + OCR boxes + selection rectangle */
-function redrawPick(sel) {
-  const cv  = document.getElementById('pick-canvas');
-  const ctx = cv.getContext('2d');
-
-  /* Layer 1: original image */
-  if (pickImgBitmap) {
-    ctx.drawImage(pickImgBitmap, 0, 0, pickCanvasW, pickCanvasH);
-  } else if (pickImgCanvas) {
-    ctx.drawImage(pickImgCanvas, 0, 0, pickCanvasW, pickCanvasH);
-  } else {
-    ctx.fillStyle = '#222'; ctx.fillRect(0,0,pickCanvasW,pickCanvasH);
-  }
-
-  /* Layer 2: all OCR boxes — dim purple outline */
-  ctx.strokeStyle = 'rgba(108,103,212,0.7)';
-  ctx.lineWidth   = 1.5;
-  ctx.fillStyle   = 'rgba(108,103,212,0.08)';
-  for (const b of pickOcrBoxes) {
-    ctx.fillRect(b.x, b.y, b.w, b.h);
-    ctx.strokeRect(b.x, b.y, b.w, b.h);
-  }
-
-  /* Layer 3: boxes inside selection — bright gold highlight */
-  if (sel) {
-    ctx.strokeStyle = '#FFD700';
-    ctx.lineWidth   = 2;
-    ctx.fillStyle   = 'rgba(255,215,0,0.28)';
-    for (const b of pickOcrBoxes) {
-      if (overlaps(b, sel)) {
-        ctx.fillRect(b.x, b.y, b.w, b.h);
-        ctx.strokeRect(b.x, b.y, b.w, b.h);
-      }
-    }
-  }
-
-  /* Layer 4: drag selection rectangle — blue */
-  if (sel && sel.w > 3 && sel.h > 3) {
-    ctx.strokeStyle = 'rgba(100,180,255,0.95)';
-    ctx.lineWidth   = 2;
-    ctx.setLineDash([6, 3]);
-    ctx.fillStyle   = 'rgba(100,180,255,0.08)';
-    ctx.fillRect(sel.x, sel.y, sel.w, sel.h);
-    ctx.strokeRect(sel.x, sel.y, sel.w, sel.h);
-    ctx.setLineDash([]);
-  }
-}
-
-/* Called when drag ends — collect text from selected boxes, update UI */
-function finaliseSelection() {
-  const sel = selRect();
-  /* Collect all OCR boxes that overlap the selection, sorted left-to-right */
-  const hit = pickOcrBoxes
-    .filter(b => overlaps(b, sel))
-    .sort((a, b) => a.x - b.x);
-
-  redrawPick(sel); // keep gold highlights visible after drag ends
-
-  if (hit.length === 0) return;
-
-  /* Concatenate text, normalise */
-  const raw  = hit.map(b => b.text).join(' ');
-  const norm = normTok(raw);
-  pickSelected = norm;
-
-  const valEl = document.getElementById('pick-sel-val');
-  valEl.innerHTML = '';
-  valEl.textContent = norm || raw;
-  document.getElementById('pick-manual-inp').value = '';
-  setPickBtn(norm.length >= 2 || raw.trim().length >= 2);
-}
-
-/* Clear selection when user taps ✕ — kept for future use */
-function clearPickSelection() {
-  pickSelected = '';
-  document.getElementById('pick-sel-val').innerHTML =
-    '<span class="pick-sel-placeholder">Draw over the text above</span>';
-  document.getElementById('pick-manual-inp').value = '';
-  setPickBtn(false);
-  redrawPick(null);
-}
-
-function onPickManualInput(val) {
-  const n = normTok(val);
-  pickSelected = n || val.trim();
-  const valEl = document.getElementById('pick-sel-val');
-  valEl.innerHTML = '';
-  valEl.textContent = pickSelected || '—';
-  redrawPick(null); // clear selection rectangle
-  setPickBtn(pickSelected.length >= 2);
-}
-
-function setPickBtn(enabled) {
-  const btn = document.getElementById('pick-gen-btn');
-  btn.disabled = !enabled;
-}
-
-function generateFromPick() {
-  const raw  = (pickSelected || '').trim();
-  const code = normTok(raw) || raw.toUpperCase().replace(/[^A-Z0-9]/g,'');
-  if (!code || code.length < 2) { toast('Select or type a code first', 'er'); return; }
-
-  currentCodes = [code];
-  const list = document.getElementById('bc-list');
-  list.innerHTML = '';
-  const { wrap } = bcCard(code, 0, null, null);
-  list.appendChild(wrap);
-
-  document.getElementById('sv-n').textContent = 1;
-  document.getElementById('sv-t').textContent = '—';
-  addHist([code]);
-  document.getElementById('sv-h').textContent = scanHistory.length;
-  setState('res');
-  toast('Barcode generated ✓', 'ok');
-}
-
 /* ── Steps (passive labels — new pipeline drives them directly) ── */
 function startSteps() {} // no-op — new pipeline sets labels directly
 function stopSteps()  {} // no-op
 function cancelProcess() { cancelled = true; goIdle(); toast('Cancelled', 'ok'); }
 
-/* ── Main pipeline — OCR → always show pick screen ──────────────────────
-   Every scan goes through:
-   1. Image quality check
-   2. OCR to detect all text regions with bounding boxes
-   3. Pick screen — user taps the text they want → barcode generated
-   No automatic prefix extraction. No auto-jump to results.
-   User is always in control of what becomes a barcode.               ── */
+/* ── Main pipeline — auto scan with prefix extraction ── */
 async function processB64(b64, mime) {
   cancelled = false; currentCodes = []; setState('proc');
+  const t0 = Date.now();
 
   ['ps0','ps1','ps2','ps3'].forEach((id, i) => {
     const el = document.getElementById(id);
     el.classList.remove('on');
-    el.textContent = ['① Checking image quality…','② Reading text regions…',
-                      '③ Preparing selection view…','④ Ready to select…'][i];
+    el.textContent = ['① Checking image quality…','② Running OCR…',
+                      '③ Extracting codes…','④ Generating barcodes…'][i];
   });
   document.getElementById('ps0').classList.add('on');
 
   try {
-    /* ── Load image ── */
     let img;
     try { img = await loadImg(b64, mime); }
     catch(e) { throw new Error('Could not decode image — try a different photo.'); }
     if (cancelled) return;
 
-    /* ── Blur check ── */
+    /* Blur check */
     const score = blurScore(img);
     if (score < BLUR_THRESHOLD) {
       document.getElementById('err-t').textContent = 'Image Too Blurry';
       document.getElementById('err-msg').textContent =
-        `Sharpness: ${score.toFixed(0)} / need ${BLUR_THRESHOLD} minimum\n\n` +
+        'Sharpness: ' + score.toFixed(0) + ' / need ' + BLUR_THRESHOLD + ' minimum\n\n' +
         'How to get a sharp photo:\n' +
-        '• TAP the label on screen before pressing capture — this locks focus\n' +
-        '• Distance: hold phone 15–20 cm (6–8 inches) from label\n' +
-        '• Flatten the label completely — no curves or folds\n' +
-        '• Good lighting — daylight or a lamp shining directly on label';
+        '• TAP the label on screen before pressing capture\n' +
+        '• Hold phone 15–20 cm from label\n' +
+        '• Flatten the label completely\n' +
+        '• Use good lighting';
       document.getElementById('ocr-debug').style.display = 'none';
       setState('err'); return;
     }
 
-    /* ── OCR: get all text regions with bounding boxes ── */
     document.getElementById('ps0').classList.remove('on');
     document.getElementById('ps0').textContent = `① Image quality: ${score.toFixed(0)} ✓`;
     document.getElementById('ps1').classList.add('on');
 
-    const pickCanvas = buildSinglePass(img)[0];
+    /* Build passes based on OCR engine */
+    const isNative = ocrMethod === 'textdetector';
+    const passes   = isNative ? buildSinglePass(img) : buildPasses(img);
     if (cancelled) return;
 
-    document.getElementById('ps1').textContent = ocrMethod === 'textdetector'
-      ? '② Reading text (Google ML Kit)…'
-      : '② Reading text (Tesseract)…';
-
-    let boxes = [];
-    try {
-      boxes = await runOCRWithBoxes(pickCanvas);
-    } catch(e) {
-      console.warn('OCR with boxes failed:', e.message);
+    const allText = [];
+    for (let i = 0; i < passes.length; i++) {
+      if (cancelled) return;
+      document.getElementById('ps1').textContent = isNative
+        ? '② OCR (Google ML Kit)…'
+        : `② Tesseract pass ${i+1} of ${passes.length}…`;
+      try {
+        const txt = await runOCR(passes[i]);
+        if (txt && txt.trim()) allText.push(txt);
+      } catch(e) { console.warn('OCR pass', i+1, 'failed:', e.message); }
+      /* Early exit for Tesseract once code found */
+      if (!isNative && allText.length > 0) {
+        if (extractCodesFromPasses(allText).length > 0) break;
+      }
     }
     if (cancelled) return;
 
     document.getElementById('ps1').classList.remove('on');
     document.getElementById('ps2').classList.add('on');
-    document.getElementById('ps2').textContent = `③ Found ${boxes.length} text region(s) — opening selection view…`;
 
-    /* ── Always show pick screen — user selects what they want ── */
-    showPickScreen(pickCanvas, boxes);
+    const codes = extractCodesFromPasses(allText);
+
+    document.getElementById('ps2').classList.remove('on');
+    document.getElementById('ps3').classList.add('on');
+
+    if (!codes.length) {
+      document.getElementById('err-t').textContent = 'No Codes Found';
+      document.getElementById('err-msg').textContent =
+        'No matching prefix codes detected.\n\nTips:\n' +
+        '• Ensure label has codes starting with configured prefixes\n' +
+        '• Better lighting · flatten the label\n' +
+        '• Use "Paste or Type Code" on home screen as fallback';
+      const dbg = document.getElementById('ocr-debug');
+      const bod = document.getElementById('ocr-dbg-body');
+      const merged = allText.join('\n');
+      if (merged.trim()) { dbg.style.display='block'; bod.textContent=merged.trim(); }
+      else dbg.style.display='none';
+      setState('err'); return;
+    }
+
+    currentCodes = codes;
+    const list = document.getElementById('bc-list'); list.innerHTML = '';
+    codes.forEach((code, i) => { const {wrap} = bcCard(code, i, allText.length, passes.length); list.appendChild(wrap); });
+
+    const ms = Date.now() - t0;
+    document.getElementById('sv-n').textContent = codes.length;
+    document.getElementById('sv-t').textContent = ms < 1000 ? ms+'ms' : (ms/1000).toFixed(1)+'s';
+    addHist(codes); document.getElementById('sv-h').textContent = scanHistory.length;
+    setState('res');
 
   } catch(err) {
     if (cancelled) return;
